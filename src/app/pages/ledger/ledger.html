@@ -1,0 +1,163 @@
+@let sm = summary();
+
+<header class="page-head">
+  <div>
+    <h1 class="page-title">Credit &amp; debit ledger</h1>
+    <p class="page-sub">Day book of every bill raised (debit) and payment received (credit), across all customers.</p>
+  </div>
+  <div class="page-actions">
+    <button type="button" class="btn btn-secondary" (click)="exportCsv()">
+      <app-icon name="download" [size]="16" /> Export CSV
+    </button>
+  </div>
+</header>
+
+<div class="filters">
+  <div class="field">
+    <span class="filter-label" id="flow-label">Entries</span>
+    <div class="segmented" role="radiogroup" aria-labelledby="flow-label">
+      <button type="button" role="radio" [attr.aria-checked]="flow() === 'all'" [class.on]="flow() === 'all'" (click)="setFlow('all')">All</button>
+      <button type="button" role="radio" [attr.aria-checked]="flow() === 'debit'" [class.on]="flow() === 'debit'" (click)="setFlow('debit')">Debit</button>
+      <button type="button" role="radio" [attr.aria-checked]="flow() === 'credit'" [class.on]="flow() === 'credit'" (click)="setFlow('credit')">Credit</button>
+    </div>
+  </div>
+  <div class="field">
+    <label for="ledger-period">Period</label>
+    <select id="ledger-period" class="input" [value]="preset()" (change)="setPreset($any($event.target).value)">
+      <option value="today">Today</option>
+      <option value="month">This month</option>
+      <option value="last-month">Last month</option>
+      <option value="3m">Last 3 months</option>
+      <option value="fy">This financial year</option>
+      <option value="all">All time</option>
+      <option value="custom">Custom dates</option>
+    </select>
+  </div>
+  <div class="field">
+    <label for="ledger-from">From</label>
+    <input id="ledger-from" class="input" type="date" [value]="from()" (change)="setDate('from', $any($event.target).value)" />
+  </div>
+  <div class="field">
+    <label for="ledger-to">To</label>
+    <input id="ledger-to" class="input" type="date" [value]="to()" (change)="setDate('to', $any($event.target).value)" />
+  </div>
+  @if (flow() !== 'debit') {
+    <div class="field">
+      <label for="ledger-mode">Mode</label>
+      <select id="ledger-mode" class="input" [value]="mode()" (change)="mode.set($any($event.target).value)">
+        <option value="">All modes</option>
+        @for (m of modes; track m) {
+          <option [value]="m">{{ m }}</option>
+        }
+      </select>
+    </div>
+  }
+  <div class="field grow">
+    <label for="ledger-search">Search</label>
+    <div class="search-field">
+      <app-icon name="search" [size]="16" />
+      <input
+        id="ledger-search"
+        class="input"
+        type="search"
+        placeholder="Customer, phone, bill or receipt no."
+        [value]="query()"
+        (input)="query.set($any($event.target).value); dayLimit.set(30)"
+      />
+    </div>
+  </div>
+</div>
+
+<section class="kpi-grid" aria-label="Totals for this view">
+  <div class="kpi">
+    <span class="kpi-label"><span class="kpi-key" style="background: var(--series-debit)"></span>Total debit</span>
+    <strong class="kpi-value">{{ sm.debit | inr }}</strong>
+    <span class="kpi-foot">{{ sm.debitCount }} bills and opening dues</span>
+  </div>
+  <div class="kpi">
+    <span class="kpi-label"><span class="kpi-key" style="background: var(--series-credit)"></span>Total credit</span>
+    <strong class="kpi-value">{{ sm.credit | inr }}</strong>
+    <span class="kpi-foot">{{ sm.creditCount }} receipts</span>
+  </div>
+  <div class="kpi">
+    <span class="kpi-label">Net movement</span>
+    <strong class="kpi-value">{{ sm.net | inr }}</strong>
+    <span class="kpi-foot">{{ sm.net > 0 ? 'Dues grew by this much' : sm.net < 0 ? 'Dues came down by this much' : 'Debits and credits matched' }}</span>
+  </div>
+  <div class="kpi">
+    <span class="kpi-label">Collection ratio</span>
+    <strong class="kpi-value">{{ sm.debit ? ((sm.credit / sm.debit) * 100).toFixed(0) + '%' : '—' }}</strong>
+    <span class="kpi-foot">Credit received per ₹100 billed</span>
+  </div>
+</section>
+
+<section class="card card-flush section-gap">
+  @if (visibleGroups().length) {
+    <div class="table-wrap">
+      <table class="data-table ledger-table">
+        <thead>
+          <tr>
+            <th scope="col">Voucher</th>
+            <th scope="col">Customer</th>
+            <th scope="col">Particulars</th>
+            <th scope="col" class="num">Debit</th>
+            <th scope="col" class="num">Credit</th>
+          </tr>
+        </thead>
+        @for (group of visibleGroups(); track group.date) {
+          <tbody>
+            <tr class="day-row">
+              <th scope="rowgroup" colspan="3" class="day-cell">{{ group.date | day }}</th>
+              <td class="num">{{ group.debit ? (group.debit | inr) : '' }}</td>
+              <td class="num">{{ group.credit ? (group.credit | inr) : '' }}</td>
+            </tr>
+            @for (entry of group.entries; track entry.id) {
+              <tr>
+                <td>
+                  <div class="voucher">
+                    <span class="flow" [class.cr]="entry.type === 'credit'">{{ entry.type === 'credit' ? 'Cr' : 'Dr' }}</span>
+                    @if (entry.source === 'bill') {
+                      <a class="row-link" [routerLink]="['/bills', entry.billId]">{{ entry.ref }}</a>
+                    } @else {
+                      <span class="strong">{{ entry.ref }}</span>
+                    }
+                  </div>
+                </td>
+                <td>
+                  <div class="cell-stack">
+                    <a class="row-link" [routerLink]="['/customers', entry.customerId]">{{ entry.customerName }}</a>
+                    @if (entry.mode) {
+                      <small>{{ entry.mode }}</small>
+                    }
+                  </div>
+                </td>
+                <td class="particulars">{{ entry.particulars }}</td>
+                <td class="num">{{ entry.type === 'debit' ? (entry.amount | inr) : '' }}</td>
+                <td class="num">{{ entry.type === 'credit' ? (entry.amount | inr) : '' }}</td>
+              </tr>
+            }
+          </tbody>
+        }
+        <tfoot>
+          <tr>
+            <th scope="row" colspan="3">Total for {{ filtered().length }} entries</th>
+            <td class="num">{{ sm.debit | inr }}</td>
+            <td class="num">{{ sm.credit | inr }}</td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+    @if (hiddenDays()) {
+      <div class="table-foot">
+        <span>{{ hiddenDays() }} more days in this period</span>
+        <button type="button" class="btn btn-secondary btn-sm" (click)="dayLimit.set(dayLimit() + 30)">Show 30 more days</button>
+      </div>
+    }
+  } @else {
+    <div class="empty-state">
+      <app-icon name="ledger" [size]="36" />
+      <strong>No entries in this view</strong>
+      Try a longer period or clear the filters.
+    </div>
+  }
+</section>

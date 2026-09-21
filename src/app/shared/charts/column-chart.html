@@ -1,0 +1,119 @@
+<div class="chart-top">
+  <ul class="legend" aria-label="Legend">
+    @for (s of series(); track s.name) {
+      <li><span class="swatch" [style.background]="s.color"></span>{{ s.name }}</li>
+    }
+  </ul>
+  <button
+    type="button"
+    class="btn btn-ghost btn-xs"
+    (click)="showTable.set(!showTable())"
+    [attr.aria-pressed]="showTable()"
+  >
+    <app-icon [name]="showTable() ? 'chart' : 'table'" [size]="14" />
+    {{ showTable() ? 'Chart' : 'Table' }}
+  </button>
+</div>
+
+@if (showTable()) {
+  <div class="table-scroll">
+    <table class="data-table compact">
+      <thead>
+        <tr>
+          <th scope="col">Period</th>
+          @for (s of series(); track s.name) {
+            <th scope="col" class="num">{{ s.name }}</th>
+          }
+        </tr>
+      </thead>
+      <tbody>
+        @for (label of labels(); track $index; let i = $index) {
+          <tr>
+            <th scope="row">{{ fullLabel(i) }}</th>
+            @for (s of series(); track s.name) {
+              <td class="num">{{ format(s.values[i]) }}</td>
+            }
+          </tr>
+        }
+      </tbody>
+      <tfoot>
+        <tr>
+          <th scope="row">Total</th>
+          @for (s of series(); track s.name) {
+            <td class="num">{{ format(total(s)) }}</td>
+          }
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+} @else {
+  <div class="plot" (mouseleave)="active.set(null)">
+    <svg
+      [attr.width]="width()"
+      [attr.height]="height()"
+      [attr.viewBox]="'0 0 ' + width() + ' ' + height()"
+      role="img"
+      [attr.aria-label]="ariaLabel()"
+    >
+      @for (tick of scale().ticks; track tick) {
+        <line
+          class="grid"
+          [class.baseline]="tick === 0"
+          [attr.x1]="pad.left"
+          [attr.x2]="plotRight()"
+          [attr.y1]="y(tick)"
+          [attr.y2]="y(tick)"
+        />
+        <text class="tick" [attr.x]="pad.left - 8" [attr.y]="y(tick)" text-anchor="end" dominant-baseline="middle">
+          {{ compact(tick) }}
+        </text>
+      }
+
+      @for (group of groups(); track group.index) {
+        @if (active() === group.index) {
+          <rect
+            class="band-highlight"
+            [attr.x]="group.bandX + 2"
+            [attr.y]="pad.top"
+            [attr.width]="band() - 4"
+            [attr.height]="plotBottom() - pad.top"
+            rx="6"
+          />
+        }
+        @for (bar of group.bars; track bar.key) {
+          <path [attr.d]="bar.d" [style.fill]="bar.color" />
+        }
+        @if (group.showLabel) {
+          <text class="tick" [attr.x]="group.center" [attr.y]="plotBottom() + 18" text-anchor="middle">
+            {{ group.label }}
+          </text>
+        }
+        <rect
+          class="hit"
+          [attr.x]="group.bandX"
+          [attr.y]="0"
+          [attr.width]="band()"
+          [attr.height]="height()"
+          tabindex="0"
+          [attr.aria-label]="fullLabel(group.index)"
+          (mouseenter)="active.set(group.index)"
+          (focus)="active.set(group.index)"
+          (blur)="active.set(null)"
+        />
+      }
+    </svg>
+
+    @if (tooltip(); as tip) {
+      <div class="tooltip" [style.left.px]="tip.left" [style.width.px]="tip.width" role="status">
+        <strong>{{ tip.title }}</strong>
+        @for (row of tip.rows; track row.name) {
+          <div class="tooltip-row">
+            <span class="swatch" [style.background]="row.color"></span>
+            <span>{{ row.name }}</span>
+            <b>{{ format(row.value) }}</b>
+          </div>
+        }
+      </div>
+    }
+  </div>
+}

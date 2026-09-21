@@ -1,0 +1,219 @@
+@if (bill(); as b) {
+  @let t = totals()!;
+  @let s = status();
+  @let c = customer();
+
+  <a class="back-link no-print" routerLink="/bills"><app-icon name="arrowLeft" [size]="16" /> Bills</a>
+
+  <header class="page-head no-print">
+    <div>
+      <h1 class="page-title">{{ b.billNo }}</h1>
+      <p class="page-sub">
+        {{ b.date | day }} ·
+        @if (c) {
+          <a [routerLink]="['/customers', c.id]">{{ c.name }}</a>
+        }
+      </p>
+    </div>
+    <div class="page-actions">
+      <button type="button" class="btn btn-ghost btn-danger" (click)="remove()">
+        <app-icon name="trash" [size]="16" /> Delete
+      </button>
+      <button type="button" class="btn btn-secondary" (click)="printInvoice()">
+        <app-icon name="printer" [size]="16" /> Print
+      </button>
+      @if ((s?.balance ?? 0) > 0) {
+        <button type="button" class="btn btn-primary" (click)="collect()">
+          <app-icon name="wallet" [size]="16" /> Record payment
+        </button>
+      }
+    </div>
+  </header>
+
+  <div class="detail-layout">
+    <article class="card invoice">
+      <header class="inv-head">
+        <div>
+          <p class="inv-shop">{{ settings().shopName }}</p>
+          <p class="inv-tag">{{ settings().tagline }}</p>
+          <p class="inv-addr">{{ settings().address }}</p>
+          <p class="inv-addr">Ph {{ settings().phone }} · GSTIN {{ settings().gstin }}</p>
+        </div>
+        <div class="inv-meta">
+          <p class="inv-title">Tax invoice</p>
+          <dl>
+            <div><dt>Invoice no.</dt><dd>{{ b.billNo }}</dd></div>
+            <div><dt>Date</dt><dd>{{ b.date | day }}</dd></div>
+            <div><dt>Place of supply</dt><dd>{{ placeOfSupply() }}</dd></div>
+          </dl>
+        </div>
+      </header>
+
+      <section class="inv-party">
+        <p class="eyebrow">Bill to</p>
+        @if (c) {
+          <strong>{{ c.name }}</strong>
+          <span>{{ c.phone | phone }} · {{ c.city }}</span>
+          @if (c.address) {
+            <span>{{ c.address }}</span>
+          }
+          @if (c.gstin) {
+            <span>GSTIN {{ c.gstin }}</span>
+          }
+        } @else {
+          <strong>Unknown customer</strong>
+        }
+      </section>
+
+      <div class="table-wrap">
+        <table class="data-table inv-table">
+          <thead>
+            <tr>
+              <th scope="col">#</th>
+              <th scope="col">Item</th>
+              <th scope="col">HSN</th>
+              <th scope="col" class="num">Pcs</th>
+              <th scope="col" class="num">Gross / net wt</th>
+              <th scope="col" class="num">Rate / g</th>
+              <th scope="col" class="num">Making</th>
+              <th scope="col" class="num">Stones</th>
+              <th scope="col" class="num">Amount</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (line of lines(); track line.item.id; let i = $index) {
+              <tr>
+                <td class="muted">{{ i + 1 }}</td>
+                <td>
+                  <div class="cell-stack">
+                    <span class="strong">{{ line.item.description }}</span>
+                    <small>
+                      {{ line.metal }} {{ line.item.purity }} · {{ line.item.category }}
+                      @if (line.item.huid) {
+                        · HUID {{ line.item.huid }}
+                      }
+                    </small>
+                  </div>
+                </td>
+                <td class="muted">{{ line.hsn }}</td>
+                <td class="num">{{ line.item.pieces }}</td>
+                <td class="num">
+                  <div class="cell-stack">
+                    <span>{{ line.item.netWeight | grams }}</span>
+                    @if (line.item.grossWeight !== line.item.netWeight) {
+                      <small>gross {{ line.item.grossWeight | grams }}</small>
+                    }
+                  </div>
+                </td>
+                <td class="num">{{ line.item.rate | inr }}</td>
+                <td class="num">
+                  <div class="cell-stack">
+                    <span>{{ line.making | inr }}</span>
+                    <small>{{ line.item.makingType === 'percent' ? line.item.makingValue + '%' : '₹' + line.item.makingValue + '/g' }}</small>
+                  </div>
+                </td>
+                <td class="num">{{ line.item.stoneCharges ? (line.item.stoneCharges | inr) : '—' }}</td>
+                <td class="num strong">{{ line.amount | inr: true }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      <div class="inv-bottom">
+        <div class="inv-words">
+          <p class="eyebrow">Amount in words</p>
+          <p>{{ words() }}</p>
+          @if (b.notes) {
+            <p class="eyebrow notes-label">Notes</p>
+            <p>{{ b.notes }}</p>
+          }
+        </div>
+        <dl class="inv-totals">
+          <div><dt>Subtotal</dt><dd>{{ t.subtotal | inr: true }}</dd></div>
+          @if (t.discount) {
+            <div><dt>Discount</dt><dd>− {{ t.discount | inr: true }}</dd></div>
+          }
+          <div><dt>Taxable value</dt><dd>{{ t.taxable | inr: true }}</dd></div>
+          <div><dt>CGST {{ b.gstPercent / 2 }}%</dt><dd>{{ t.cgst | inr: true }}</dd></div>
+          <div><dt>SGST {{ b.gstPercent / 2 }}%</dt><dd>{{ t.sgst | inr: true }}</dd></div>
+          @if (t.roundOff) {
+            <div><dt>Round off</dt><dd>{{ t.roundOff | inr: true }}</dd></div>
+          }
+          <div class="grand"><dt>Invoice total</dt><dd>{{ t.total | inr }}</dd></div>
+        </dl>
+      </div>
+
+      <section class="inv-settle">
+        <p class="eyebrow">Settlement</p>
+        @if (payments().length) {
+          <table class="data-table compact">
+            <tbody>
+              @for (p of payments(); track p.id) {
+                <tr>
+                  <td>{{ p.date | day }}</td>
+                  <td>{{ p.receiptNo }}</td>
+                  <td>
+                    {{ p.mode }}
+                    @if (p.oldGold; as og) {
+                      <small class="muted">· {{ og.weight | grams }} {{ og.purity }} &#64; {{ og.rate | inr }}/g</small>
+                    } @else if (p.reference) {
+                      <small class="muted">· {{ p.reference }}</small>
+                    }
+                  </td>
+                  <td class="num">{{ p.amount | inr }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        } @else {
+          <p class="muted-line">No payment recorded against this bill yet.</p>
+        }
+        @if (adjustedFromAccount() > 0) {
+          <p class="muted-line">{{ adjustedFromAccount() | inr }} adjusted from other payments on the customer's account.</p>
+        }
+        <dl class="inv-totals settle">
+          <div><dt>Received</dt><dd>{{ s?.paid ?? 0 | inr }}</dd></div>
+          <div class="grand"><dt>Balance due</dt><dd>{{ s?.balance ?? 0 | inr }}</dd></div>
+        </dl>
+      </section>
+
+      <footer class="inv-foot">
+        <p>All gold jewellery is BIS hallmarked. Old gold is valued on purity test at the counter. Goods once sold are exchanged as per shop policy.</p>
+        <div class="sign">
+          <span>For {{ settings().shopName }}</span>
+          <span class="sign-line">Authorised signatory</span>
+        </div>
+      </footer>
+    </article>
+
+    <aside class="side no-print">
+      <section class="card">
+        <h2 class="card-title">Status</h2>
+        <div class="status-row"><app-status-chip [status]="s" /></div>
+        <dl class="side-list">
+          <div><dt>Invoice total</dt><dd>{{ t.total | inr }}</dd></div>
+          <div><dt>Received</dt><dd>{{ s?.paid ?? 0 | inr }}</dd></div>
+          <div><dt>Balance</dt><dd class="strong" [class.text-danger]="(s?.balance ?? 0) > 0">{{ s?.balance ?? 0 | inr }}</dd></div>
+          <div><dt>Net weight</dt><dd>{{ t.netWeight | grams }}</dd></div>
+          <div><dt>Days since billing</dt><dd>{{ s?.daysOpen ?? 0 }}</dd></div>
+        </dl>
+      </section>
+      @if (c) {
+        <section class="card">
+          <h2 class="card-title">Customer</h2>
+          <p class="side-name"><a [routerLink]="['/customers', c.id]">{{ c.name }}</a></p>
+          <p class="muted-line">{{ c.phone | phone }} · {{ c.city }}</p>
+          <a class="btn btn-secondary btn-sm side-btn" [routerLink]="['/customers', c.id]">Open statement</a>
+        </section>
+      }
+    </aside>
+  </div>
+} @else {
+  <div class="card empty-state">
+    <app-icon name="receipt" [size]="36" />
+    <strong>Bill not found</strong>
+    It may have been deleted.
+    <a class="btn btn-secondary btn-sm" routerLink="/bills">Back to bills</a>
+  </div>
+}

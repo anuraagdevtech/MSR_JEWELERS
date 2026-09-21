@@ -1,0 +1,200 @@
+<dialog #dialog class="modal" aria-labelledby="payment-title" (close)="close()" (click)="onBackdrop($event)">
+  <form class="modal-card" (ngSubmit)="save()" novalidate>
+    <header class="modal-head">
+      <div>
+        <p class="eyebrow">Credit entry</p>
+        <h2 id="payment-title">Record payment</h2>
+      </div>
+      <button type="button" class="icon-btn" (click)="close()" aria-label="Close">
+        <app-icon name="close" />
+      </button>
+    </header>
+
+    <div class="modal-body">
+      <div class="field">
+        <label for="payment-customer">Received from</label>
+        <app-customer-picker
+          inputId="payment-customer"
+          [value]="customerId()"
+          (valueChange)="onCustomer($event)"
+          [locked]="customerLocked()"
+          (create)="newCustomer($event)"
+        />
+      </div>
+
+      @if (customer()) {
+        <div class="field">
+          <label for="payment-bill">Adjust against</label>
+          <select
+            id="payment-bill"
+            class="input"
+            name="billId"
+            [ngModel]="billId()"
+            (ngModelChange)="onBill($event)"
+          >
+            <option value="">Oldest dues first (automatic)</option>
+            @for (row of openBills(); track row.bill.id) {
+              <option [value]="row.bill.id">
+                {{ row.bill.billNo }} · {{ row.bill.date | day }} · {{ row.status?.balance ?? 0 | inr }} due
+              </option>
+            }
+          </select>
+        </div>
+      }
+
+      <fieldset class="field">
+        <legend>Mode</legend>
+        <div class="segmented wrap" role="radiogroup" aria-label="Payment mode">
+          @for (m of modes; track m) {
+            <button
+              type="button"
+              role="radio"
+              [attr.aria-checked]="mode() === m"
+              [class.on]="mode() === m"
+              (click)="mode.set(m)"
+            >
+              {{ m }}
+            </button>
+          }
+        </div>
+      </fieldset>
+
+      @if (mode() === 'Old gold') {
+        <div class="grid-3">
+          <div class="field">
+            <label for="og-weight">Net weight (g)</label>
+            <input
+              id="og-weight"
+              class="input"
+              type="number"
+              inputmode="decimal"
+              min="0"
+              step="0.001"
+              name="goldWeight"
+              [(ngModel)]="goldWeight"
+            />
+          </div>
+          <div class="field">
+            <label for="og-purity">Purity</label>
+            <select
+              id="og-purity"
+              class="input"
+              name="goldPurity"
+              [ngModel]="goldPurity()"
+              (ngModelChange)="onPurity($event)"
+            >
+              @for (p of goldPurities; track p) {
+                <option [value]="p">{{ p }}</option>
+              }
+            </select>
+          </div>
+          <div class="field">
+            <label for="og-rate">Rate / g</label>
+            <input
+              id="og-rate"
+              class="input"
+              type="number"
+              inputmode="decimal"
+              min="0"
+              name="goldRate"
+              [(ngModel)]="goldRate"
+            />
+          </div>
+        </div>
+        <p class="hint">Value credited: <strong>{{ effectiveAmount() | inr }}</strong>. Adjust the rate for melting loss after the purity test.</p>
+      }
+
+      <div class="grid-2">
+        @if (mode() !== 'Old gold') {
+          <div class="field">
+            <div class="label-row">
+              <label for="payment-amount">Amount (₹)</label>
+              @if (suggested() > 0) {
+                <button type="button" class="link-btn" (click)="amount.set(suggested())">
+                  {{ billId() ? 'Bill balance' : 'Full due' }} {{ suggested() | inr }}
+                </button>
+              }
+            </div>
+            <input
+              id="payment-amount"
+              class="input input-lg"
+              type="number"
+              inputmode="numeric"
+              min="0"
+              name="amount"
+              [(ngModel)]="amount"
+            />
+          </div>
+        }
+        <div class="field">
+          <label for="payment-date">Date</label>
+          <input id="payment-date" class="input" type="date" name="date" [max]="today()" [(ngModel)]="date" />
+        </div>
+      </div>
+
+      @if (referenceHint()) {
+        <div class="field">
+          <label for="payment-ref">Reference <span class="optional">optional</span></label>
+          <input
+            id="payment-ref"
+            class="input"
+            name="reference"
+            [placeholder]="referenceHint()"
+            [(ngModel)]="reference"
+          />
+        </div>
+      }
+
+      <div class="field">
+        <label for="payment-notes">Note <span class="optional">optional</span></label>
+        <input
+          id="payment-notes"
+          class="input"
+          name="notes"
+          placeholder="e.g. Instalment towards wedding set"
+          [(ngModel)]="notes"
+        />
+      </div>
+
+      @if (cashWarning()) {
+        <p class="notice notice-warning" role="alert">
+          <app-icon name="alert" [size]="16" />
+          Cash of ₹2 lakh or more from one person in a day is not permitted under Section 269ST. Take the excess by bank transfer or cheque.
+        </p>
+      }
+
+      @if (customer()) {
+        <div class="balance-strip">
+          <div>
+            <span>Balance now</span>
+            <strong>{{ balance() | balance }}</strong>
+          </div>
+          <app-icon name="chevronRight" />
+          <div>
+            <span>After this receipt</span>
+            <strong [class.text-good]="balanceAfter() <= 0">{{ balanceAfter() | balance }}</strong>
+          </div>
+        </div>
+        @if (balanceAfter() < 0) {
+          <p class="hint">The extra {{ -balanceAfter() | inr }} will be held as an advance for {{ customer()?.name }}.</p>
+        }
+      }
+
+      @if (submitted() && errors().length) {
+        <ul class="form-errors" role="alert">
+          @for (error of errors(); track error) {
+            <li>{{ error }}</li>
+          }
+        </ul>
+      }
+    </div>
+
+    <footer class="modal-foot">
+      <button type="button" class="btn btn-ghost" (click)="close()">Cancel</button>
+      <button type="submit" class="btn btn-primary">
+        <app-icon name="check" [size]="16" />
+        Save receipt · {{ effectiveAmount() | inr }}
+      </button>
+    </footer>
+  </form>
+</dialog>

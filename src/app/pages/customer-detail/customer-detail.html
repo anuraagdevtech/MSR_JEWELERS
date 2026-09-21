@@ -1,0 +1,315 @@
+@if (customer(); as c) {
+  @let s = summary()!;
+
+  <a class="back-link no-print" routerLink="/customers"><app-icon name="arrowLeft" [size]="16" /> Customers</a>
+
+  <div class="print-only print-head">
+    <strong>{{ store.settings().shopName }}</strong>
+    <span>{{ store.settings().address }} · GSTIN {{ store.settings().gstin }}</span>
+    <h1>Statement of account</h1>
+  </div>
+
+  <header class="profile card">
+    <div class="profile-main">
+      <span class="avatar lg">{{ initials() }}</span>
+      <div class="profile-text">
+        <h1 class="page-title">{{ c.name }}</h1>
+        <p class="profile-meta">
+          <a [href]="'tel:' + c.phone.replace(' ', '')"><app-icon name="phone" [size]="14" />{{ c.phone | phone }}</a>
+          <span><app-icon name="mapPin" [size]="14" />{{ c.city }}</span>
+          <span>Customer since {{ c.createdAt | day }}</span>
+        </p>
+        @if (c.notes) {
+          <p class="profile-notes">{{ c.notes }}</p>
+        }
+      </div>
+    </div>
+    <div class="page-actions no-print">
+      <a class="btn btn-primary" routerLink="/bills/new" [queryParams]="{ customer: c.id }">
+        <app-icon name="plus" [size]="16" /> New bill
+      </a>
+      <button type="button" class="btn btn-secondary" (click)="collect()">
+        <app-icon name="wallet" [size]="16" /> Record payment
+      </button>
+      @if (whatsapp(); as link) {
+        <a class="btn btn-secondary" [href]="link" target="_blank" rel="noopener">
+          <app-icon name="message" [size]="16" /> Remind
+        </a>
+      }
+      <button type="button" class="icon-btn" (click)="edit()" aria-label="Edit customer" title="Edit customer">
+        <app-icon name="edit" />
+      </button>
+    </div>
+  </header>
+
+  <section class="kpi-grid five section-gap" aria-label="Account summary">
+    <div class="kpi">
+      <span class="kpi-label"><span class="kpi-key" style="background: var(--series-debit)"></span>Total billed</span>
+      <strong class="kpi-value">{{ s.billed | inr }}</strong>
+      <span class="kpi-foot">{{ s.billsCount }} bills @if (c.openingBalance) { · opening {{ c.openingBalance | balance }} }</span>
+    </div>
+    <div class="kpi">
+      <span class="kpi-label"><span class="kpi-key" style="background: var(--series-credit)"></span>Total paid</span>
+      <strong class="kpi-value">{{ s.paid | inr }}</strong>
+      <span class="kpi-foot">Last paid {{ s.lastPaymentDate | day }}</span>
+    </div>
+    <div class="kpi" [class.alert]="s.balance > 0">
+      <span class="kpi-label">{{ s.balance < 0 ? 'Advance held' : 'Balance due' }}</span>
+      <strong class="kpi-value" [class.text-danger]="s.balance > 0" [class.text-good]="s.balance <= 0">
+        {{ s.balance | balance }}
+      </strong>
+      <span class="kpi-foot">{{ openBills().length }} open {{ openBills().length === 1 ? 'bill' : 'bills' }}</span>
+    </div>
+    <div class="kpi">
+      <span class="kpi-label">Overdue</span>
+      <strong class="kpi-value" [class.text-danger]="s.overdueAmount > 0">{{ s.overdueAmount | inr }}</strong>
+      <span class="kpi-foot">
+        @if (s.oldestDueDays) { Oldest due {{ s.oldestDueDays }} days } @else { Nothing overdue }
+      </span>
+    </div>
+    <div class="kpi">
+      <span class="kpi-label">Old gold exchanged</span>
+      <strong class="kpi-value">{{ s.goldExchangedGrams | grams: 2 }}</strong>
+      <span class="kpi-foot">Across all bills</span>
+    </div>
+  </section>
+
+  @if (trend().active) {
+    <section class="card section-gap no-print">
+      <div class="card-head">
+        <div>
+          <h2 class="card-title">Last 12 months</h2>
+          <p class="card-sub">Purchases billed against payments received</p>
+        </div>
+      </div>
+      <app-column-chart
+        [caption]="'Billed and paid by month for ' + c.name"
+        [labels]="trend().labels"
+        [fullLabels]="trend().fullLabels"
+        [series]="trend().series"
+        [height]="200"
+      />
+    </section>
+  }
+
+  <section class="card card-flush section-gap">
+    <div class="tabs tabs-in-card no-print" role="tablist" aria-label="Account views">
+      <button type="button" role="tab" [attr.aria-selected]="tab() === 'statement'" [class.on]="tab() === 'statement'" (click)="tab.set('statement')">
+        Statement
+      </button>
+      <button type="button" role="tab" [attr.aria-selected]="tab() === 'bills'" [class.on]="tab() === 'bills'" (click)="tab.set('bills')">
+        Bills <span class="count">{{ bills().length }}</span>
+      </button>
+      <button type="button" role="tab" [attr.aria-selected]="tab() === 'payments'" [class.on]="tab() === 'payments'" (click)="tab.set('payments')">
+        Payments <span class="count">{{ payments().length }}</span>
+      </button>
+    </div>
+
+    @switch (tab()) {
+      @case ('statement') {
+        @let st = statement();
+        <div class="tab-toolbar no-print">
+          <div class="segmented" role="radiogroup" aria-label="Statement period">
+            <button type="button" role="radio" [attr.aria-checked]="range() === 'all'" [class.on]="range() === 'all'" (click)="range.set('all')">All time</button>
+            <button type="button" role="radio" [attr.aria-checked]="range() === 'fy'" [class.on]="range() === 'fy'" (click)="range.set('fy')">This FY</button>
+            <button type="button" role="radio" [attr.aria-checked]="range() === '12m'" [class.on]="range() === '12m'" (click)="range.set('12m')">12 months</button>
+          </div>
+          <div class="page-actions">
+            <button type="button" class="btn btn-ghost btn-sm" (click)="exportStatement()">
+              <app-icon name="download" [size]="15" /> CSV
+            </button>
+            <button type="button" class="btn btn-ghost btn-sm" (click)="printStatement()">
+              <app-icon name="printer" [size]="15" /> Print
+            </button>
+          </div>
+        </div>
+        @if (st.rows.length || st.broughtForward !== null) {
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th scope="col">Date</th>
+                  <th scope="col">Particulars</th>
+                  <th scope="col" class="num">Debit</th>
+                  <th scope="col" class="num">Credit</th>
+                  <th scope="col" class="num">Balance</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (row of st.rows; track row.id) {
+                  <tr>
+                    <td class="nowrap">{{ row.date | day }}</td>
+                    <td>
+                      <div class="cell-stack">
+                        <span class="entry-ref">
+                          <span class="flow" [class.cr]="row.type === 'credit'">{{ row.type === 'credit' ? 'Cr' : 'Dr' }}</span>
+                          @if (row.billId && row.source === 'bill') {
+                            <a class="row-link" [routerLink]="['/bills', row.billId]">{{ row.ref }}</a>
+                          } @else {
+                            <span class="strong">{{ row.ref }}</span>
+                          }
+                          @if (row.mode) {
+                            <span class="chip chip-neutral mode">{{ row.mode }}</span>
+                          }
+                        </span>
+                        <small>{{ row.particulars }}</small>
+                      </div>
+                    </td>
+                    <td class="num">{{ row.type === 'debit' ? (row.amount | inr) : '' }}</td>
+                    <td class="num">{{ row.type === 'credit' ? (row.amount | inr) : '' }}</td>
+                    <td class="num strong">{{ row.balance | balance }}</td>
+                  </tr>
+                }
+                @if (st.broughtForward !== null) {
+                  <tr class="bf-row">
+                    <td></td>
+                    <td class="muted">Balance brought forward</td>
+                    <td></td>
+                    <td></td>
+                    <td class="num strong">{{ st.broughtForward | balance }}</td>
+                  </tr>
+                }
+              </tbody>
+              <tfoot>
+                <tr>
+                  <th scope="row" colspan="2">Totals for period</th>
+                  <td class="num">{{ st.debit | inr }}</td>
+                  <td class="num">{{ st.credit | inr }}</td>
+                  <td class="num">{{ s.balance | balance }}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        } @else {
+          <div class="empty-state">
+            <app-icon name="ledger" [size]="32" />
+            <strong>No entries yet</strong>
+            Bills and payments for {{ c.name }} will appear here.
+          </div>
+        }
+      }
+
+      @case ('bills') {
+        @if (bills().length) {
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th scope="col">Bill</th>
+                  <th scope="col">Items</th>
+                  <th scope="col" class="num">Net wt.</th>
+                  <th scope="col" class="num">Total</th>
+                  <th scope="col" class="num">Balance</th>
+                  <th scope="col">Status</th>
+                  <th scope="col"><span class="visually-hidden">Actions</span></th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (row of bills(); track row.bill.id) {
+                  <tr>
+                    <td>
+                      <div class="cell-stack">
+                        <a class="row-link" [routerLink]="['/bills', row.bill.id]">{{ row.bill.billNo }}</a>
+                        <small>{{ row.bill.date | day }}</small>
+                      </div>
+                    </td>
+                    <td class="items-cell">{{ row.items }}</td>
+                    <td class="num">{{ row.totals.netWeight | grams }}</td>
+                    <td class="num">{{ row.totals.total | inr }}</td>
+                    <td class="num strong">{{ row.status?.balance ?? 0 | inr }}</td>
+                    <td><app-status-chip [status]="row.status" /></td>
+                    <td class="num">
+                      @if ((row.status?.balance ?? 0) > 0) {
+                        <button type="button" class="btn btn-secondary btn-xs" (click)="collect(row.bill.id)">Collect</button>
+                      }
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        } @else {
+          <div class="empty-state">
+            <app-icon name="receipt" [size]="32" />
+            <strong>No bills yet</strong>
+            <a class="btn btn-primary btn-sm" routerLink="/bills/new" [queryParams]="{ customer: c.id }">Create the first bill</a>
+          </div>
+        }
+      }
+
+      @case ('payments') {
+        @if (payments().length) {
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th scope="col">Receipt</th>
+                  <th scope="col">Mode</th>
+                  <th scope="col">Against</th>
+                  <th scope="col" class="num">Amount</th>
+                  <th scope="col"><span class="visually-hidden">Actions</span></th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (row of payments(); track row.payment.id) {
+                  <tr>
+                    <td>
+                      <div class="cell-stack">
+                        <span class="strong">{{ row.payment.receiptNo }}</span>
+                        <small>{{ row.payment.date | day }}</small>
+                      </div>
+                    </td>
+                    <td>
+                      <div class="cell-stack">
+                        <span>{{ row.payment.mode }}</span>
+                        <small>
+                          @if (row.payment.oldGold; as og) {
+                            {{ og.weight | grams }} {{ og.purity }} @ {{ og.rate | inr }}/g
+                          } @else {
+                            {{ row.payment.reference || row.payment.notes || '—' }}
+                          }
+                        </small>
+                      </div>
+                    </td>
+                    <td>
+                      @if (row.bill) {
+                        <a class="row-link" [routerLink]="['/bills', row.bill.id]">{{ row.bill.billNo }}</a>
+                      } @else {
+                        <span class="muted">On account</span>
+                      }
+                    </td>
+                    <td class="num strong">{{ row.payment.amount | inr }}</td>
+                    <td class="num">
+                      <button
+                        type="button"
+                        class="icon-btn sm btn-danger"
+                        (click)="removePayment(row.payment)"
+                        [attr.aria-label]="'Delete receipt ' + row.payment.receiptNo"
+                        title="Delete receipt"
+                      >
+                        <app-icon name="trash" [size]="15" />
+                      </button>
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        } @else {
+          <div class="empty-state">
+            <app-icon name="wallet" [size]="32" />
+            <strong>No payments yet</strong>
+            <button type="button" class="btn btn-primary btn-sm" (click)="collect()">Record a payment</button>
+          </div>
+        }
+      }
+    }
+  </section>
+} @else {
+  <div class="card empty-state">
+    <app-icon name="users" [size]="36" />
+    <strong>Customer not found</strong>
+    This customer may have been deleted.
+    <a class="btn btn-secondary btn-sm" routerLink="/customers">Back to customers</a>
+  </div>
+}

@@ -1,0 +1,121 @@
+// Design tokens. Light is the default; dark is its own set of steps (not an inversion),
+// applied for OS dark mode unless the user pinned a theme in Settings.
+
+@mixin dark-tokens {
+  color-scheme: dark;
+  --bg: #12100d;
+  --surface: #1c1a17;
+  --surface-2: #24211c;
+  --surface-3: #2d2923;
+  --border: #34302a;
+  --border-strong: #4a4338;
+  --text: #f4efe6;
+  --text-2: #cfc6b6;
+  --text-3: #9d9483;
+
+  --accent: #d9b25e;
+  --accent-hover: #e6c273;
+  --on-accent: #1c1a17;
+  --accent-text: #e2bf72;
+  --accent-soft: rgba(217, 178, 94, 0.14);
+  --focus: #e2bf72;
+  --hover-wash: rgba(226, 191, 114, 0.08);
+
+  --sidebar-bg: #0d0b09;
+  --sidebar-border: rgba(255, 255, 255, 0.07);
+
+  --series-debit: #b8862b;
+  --series-credit: #3f82d4;
+  --chart-grid: #2c2924;
+  --chart-axis: #413b32;
+
+  --good-text: #5fd07a;
+  --good-bg: rgba(12, 163, 12, 0.16);
+  --warning-text: #f2c14e;
+  --warning-bg: rgba(250, 178, 25, 0.14);
+  --danger-text: #ff8a80;
+  --danger-bg: rgba(208, 59, 59, 0.18);
+  --info-text: #8bb8f0;
+  --info-bg: rgba(63, 130, 212, 0.18);
+  --neutral-text: #cfc6b6;
+  --neutral-bg: #2d2923;
+
+  --tooltip-bg: #f4efe6;
+  --tooltip-text: #1c1a17;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.35);
+  --shadow-lg: 0 18px 48px rgba(0, 0, 0, 0.55);
+}
+
+:root {
+  color-scheme: light;
+  --font-sans: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-display: 'Cormorant Garamond', 'Iowan Old Style', Georgia, serif;
+
+  --bg: #f6f3ee;
+  --surface: #fffdf9;
+  --surface-2: #f8f4ec;
+  --surface-3: #efe8dc;
+  --border: #e6ddcd;
+  --border-strong: #d5c8b1;
+  --text: #1f1a14;
+  --text-2: #544a3e;
+  --text-3: #6f6558;
+
+  --accent: #8a5a0b;
+  --accent-hover: #744b08;
+  --on-accent: #ffffff;
+  --accent-text: #8a5a0b;
+  --accent-soft: #f6ead2;
+  --focus: #b07a14;
+  --hover-wash: rgba(176, 122, 20, 0.08);
+
+  --gold-100: #f7ecd4;
+  --gold-200: #ecd29a;
+  --gold-300: #d9b25e;
+
+  --sidebar-bg: #1c1812;
+  --sidebar-text: #d8cfc0;
+  --sidebar-strong: #fff8ea;
+  --sidebar-muted: #a39883;
+  --sidebar-hover: rgba(255, 255, 255, 0.05);
+  --sidebar-active: rgba(217, 178, 94, 0.14);
+  --sidebar-border: rgba(255, 255, 255, 0.08);
+
+  // Chart series: validated as a pair (CVD ΔE 23, normal-vision ΔE 26, ≥3:1 on surface).
+  --series-debit: #b07a14;
+  --series-credit: #2f6fb3;
+  --chart-grid: #ece5d8;
+  --chart-axis: #cfc3ae;
+
+  --good-text: #0f6b33;
+  --good-bg: #e5f3e8;
+  --warning-text: #8a5300;
+  --warning-bg: #fdf0d2;
+  --danger-text: #b42318;
+  --danger-bg: #fdeceb;
+  --info-text: #1f5aa0;
+  --info-bg: #e8f0fb;
+  --neutral-text: #5c5347;
+  --neutral-bg: #efe9df;
+
+  --tooltip-bg: #1f1a14;
+  --tooltip-text: #fbf6ec;
+  --shadow-sm: 0 1px 2px rgba(40, 28, 10, 0.06);
+  --shadow-md: 0 4px 16px rgba(40, 28, 10, 0.06);
+  --shadow-lg: 0 18px 48px rgba(40, 28, 10, 0.18);
+
+  --radius: 14px;
+  --radius-sm: 10px;
+  --sidebar-w: 248px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    @include dark-tokens;
+  }
+}
+
+:root[data-theme='dark'] {
+  @include dark-tokens;
+}

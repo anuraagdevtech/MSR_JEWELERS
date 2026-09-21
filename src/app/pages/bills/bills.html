@@ -1,0 +1,121 @@
+<header class="page-head">
+  <div>
+    <h1 class="page-title">Bills</h1>
+    <p class="page-sub">Tax invoices raised at the counter, with what has been paid against each.</p>
+  </div>
+  <div class="page-actions">
+    <button type="button" class="btn btn-secondary" (click)="exportCsv()">
+      <app-icon name="download" [size]="16" /> Export
+    </button>
+    <a class="btn btn-primary" routerLink="/bills/new"><app-icon name="plus" [size]="16" /> New bill</a>
+  </div>
+</header>
+
+<div class="tabs" role="tablist" aria-label="Filter bills by status">
+  @for (s of segments(); track s.key) {
+    <button
+      type="button"
+      role="tab"
+      [attr.aria-selected]="segment() === s.key"
+      [class.on]="segment() === s.key"
+      (click)="segment.set(s.key); limit.set(40)"
+    >
+      {{ s.label }} <span class="count">{{ s.count }}</span>
+    </button>
+  }
+</div>
+
+<div class="filters">
+  <div class="field grow">
+    <label for="bill-search">Search</label>
+    <div class="search-field">
+      <app-icon name="search" [size]="16" />
+      <input
+        id="bill-search"
+        class="input"
+        type="search"
+        placeholder="Bill no., customer or item"
+        [value]="query()"
+        (input)="query.set($any($event.target).value); limit.set(40)"
+      />
+    </div>
+  </div>
+  <div class="field">
+    <label for="bill-period">Period</label>
+    <select id="bill-period" class="input" [value]="preset()" (change)="setPreset($any($event.target).value)">
+      <option value="all">All time</option>
+      <option value="month">This month</option>
+      <option value="last-month">Last month</option>
+      <option value="fy">This financial year</option>
+      <option value="custom">Custom dates</option>
+    </select>
+  </div>
+  <div class="field">
+    <label for="bill-from">From</label>
+    <input id="bill-from" class="input" type="date" [value]="from()" (change)="setDate('from', $any($event.target).value)" />
+  </div>
+  <div class="field">
+    <label for="bill-to">To</label>
+    <input id="bill-to" class="input" type="date" [value]="to()" (change)="setDate('to', $any($event.target).value)" />
+  </div>
+</div>
+
+<section class="mini-stats" aria-label="Totals for the bills shown">
+  <div><span>Bills</span><strong>{{ filtered().length }}</strong></div>
+  <div><span>Billed</span><strong>{{ summary().total | inr }}</strong></div>
+  <div><span>Received</span><strong>{{ summary().paid | inr }}</strong></div>
+  <div><span>Balance due</span><strong [class.text-danger]="summary().balance > 0">{{ summary().balance | inr }}</strong></div>
+  <div><span>Net weight</span><strong>{{ summary().weight | grams: 1 }}</strong></div>
+</section>
+
+<section class="card card-flush section-gap">
+  @if (visible().length) {
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th scope="col">Bill</th>
+            <th scope="col">Customer</th>
+            <th scope="col" class="hide-md">Items</th>
+            <th scope="col" class="num hide-md">Net wt.</th>
+            <th scope="col" class="num">Total</th>
+            <th scope="col" class="num hide-md">Paid</th>
+            <th scope="col" class="num">Balance</th>
+            <th scope="col">Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (row of visible(); track row.bill.id) {
+            <tr class="clickable" (click)="open(row.bill.id)">
+              <td>
+                <div class="cell-stack">
+                  <a class="row-link" [routerLink]="['/bills', row.bill.id]" (click)="$event.stopPropagation()">{{ row.bill.billNo }}</a>
+                  <small>{{ row.bill.date | day }}</small>
+                </div>
+              </td>
+              <td>{{ row.customer?.name ?? 'Unknown' }}</td>
+              <td class="items-cell hide-md">{{ row.items }}</td>
+              <td class="num hide-md">{{ row.totals.netWeight | grams }}</td>
+              <td class="num">{{ row.totals.total | inr }}</td>
+              <td class="num hide-md">{{ row.status?.paid ?? 0 | inr }}</td>
+              <td class="num strong">{{ row.status?.balance ?? 0 | inr }}</td>
+              <td><app-status-chip [status]="row.status" /></td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+    <div class="table-foot">
+      <span>Showing {{ visible().length }} of {{ filtered().length }}</span>
+      @if (visible().length < filtered().length) {
+        <button type="button" class="btn btn-secondary btn-sm" (click)="limit.set(limit() + 40)">Show more</button>
+      }
+    </div>
+  } @else {
+    <div class="empty-state">
+      <app-icon name="receipt" [size]="36" />
+      <strong>No bills match</strong>
+      Try another period or clear the search.
+    </div>
+  }
+</section>

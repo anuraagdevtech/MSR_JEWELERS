@@ -1,0 +1,135 @@
+<header class="page-head">
+  <div>
+    <h1 class="page-title">Customers</h1>
+    <p class="page-sub">Every account with its lifetime purchases, payments and khata balance.</p>
+  </div>
+  <div class="page-actions">
+    <button type="button" class="btn btn-secondary" (click)="exportCsv()">
+      <app-icon name="download" [size]="16" /> Export
+    </button>
+    <button type="button" class="btn btn-primary" (click)="addCustomer()">
+      <app-icon name="userPlus" [size]="16" /> Add customer
+    </button>
+  </div>
+</header>
+
+<div class="tabs" role="tablist" aria-label="Filter customers">
+  @for (s of segments(); track s.key) {
+    <button
+      type="button"
+      role="tab"
+      [attr.aria-selected]="segment() === s.key"
+      [class.on]="segment() === s.key"
+      (click)="segment.set(s.key)"
+    >
+      {{ s.label }} <span class="count">{{ s.count }}</span>
+    </button>
+  }
+</div>
+
+<div class="filters">
+  <div class="field grow">
+    <label for="customer-search" class="visually-hidden">Search customers</label>
+    <div class="search-field">
+      <app-icon name="search" [size]="16" />
+      <input
+        id="customer-search"
+        class="input"
+        type="search"
+        placeholder="Name, phone or city"
+        [value]="query()"
+        (input)="query.set($any($event.target).value)"
+      />
+    </div>
+  </div>
+  <div class="field">
+    <label for="customer-sort" class="visually-hidden">Sort by</label>
+    <select
+      id="customer-sort"
+      class="input"
+      [value]="sort()"
+      (change)="sort.set($any($event.target).value)"
+    >
+      <option value="balance">Highest balance first</option>
+      <option value="recent">Recent activity</option>
+      <option value="value">Lifetime purchases</option>
+      <option value="name">Name A–Z</option>
+    </select>
+  </div>
+</div>
+
+<section class="card card-flush">
+  @if (rows().length) {
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th scope="col">Customer</th>
+            <th scope="col" class="hide-md">City</th>
+            <th scope="col" class="num hide-md">Bills</th>
+            <th scope="col" class="num hide-md">Total billed</th>
+            <th scope="col" class="num hide-md">Total paid</th>
+            <th scope="col" class="num">Balance</th>
+            <th scope="col" class="hide-md">Last activity</th>
+            <th scope="col" class="status-cell">Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (row of rows(); track row.customer.id) {
+            <tr class="clickable" (click)="open(row)">
+              <td>
+                <div class="cell-main">
+                  <span class="avatar sm">{{ row.initials }}</span>
+                  <span class="cell-stack">
+                    <a class="row-link" [routerLink]="['/customers', row.customer.id]" (click)="$event.stopPropagation()">
+                      {{ row.customer.name }}
+                    </a>
+                    <small>{{ row.customer.phone | phone }}</small>
+                  </span>
+                </div>
+              </td>
+              <td class="muted hide-md">{{ row.customer.city }}</td>
+              <td class="num hide-md">{{ row.summary.billsCount }}</td>
+              <td class="num hide-md">{{ row.summary.billed | inr }}</td>
+              <td class="num hide-md">{{ row.summary.paid | inr }}</td>
+              <td class="num strong" [class.text-danger]="row.summary.overdueAmount > 0">
+                {{ row.summary.balance | balance }}
+              </td>
+              <td class="muted hide-md">{{ row.summary.lastActivity | day }}</td>
+              <td class="status-cell">
+                <span [class]="'chip chip-' + row.status.tone">
+                  <app-icon [name]="row.status.icon" [size]="13" /> {{ row.status.label }}
+                </span>
+              </td>
+            </tr>
+          }
+        </tbody>
+        <tfoot>
+          <tr>
+            <th scope="row">{{ rows().length }} customers</th>
+            <td class="hide-md"></td>
+            <td class="hide-md"></td>
+            <td class="num hide-md">{{ totals().billed | inr }}</td>
+            <td class="num hide-md">{{ totals().paid | inr }}</td>
+            <td class="num">{{ totals().balance | balance }}</td>
+            <td class="hide-md"></td>
+            <td></td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  } @else {
+    <div class="empty-state">
+      <app-icon name="users" [size]="36" />
+      <strong>No customers found</strong>
+      @if (query()) {
+        Nothing matches “{{ query() }}”. Try a phone number or add them as a new customer.
+      } @else {
+        No customers in this list yet.
+      }
+      <button type="button" class="btn btn-primary btn-sm" (click)="addCustomer()">
+        <app-icon name="userPlus" [size]="16" /> Add customer
+      </button>
+    </div>
+  }
+</section>

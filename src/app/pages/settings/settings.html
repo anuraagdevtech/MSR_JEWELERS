@@ -1,0 +1,191 @@
+<header class="page-head">
+  <div>
+    <h1 class="page-title">Settings</h1>
+    <p class="page-sub">Board rates, invoice details and your data.</p>
+  </div>
+</header>
+
+<div class="settings-grid">
+  <section class="card" id="rates">
+    <div class="card-head">
+      <div>
+        <h2 class="card-title">Today's board rates</h2>
+        <p class="card-sub">Per gram. New bills and old-gold exchange start from these.</p>
+      </div>
+      <button type="button" class="btn btn-ghost btn-sm" (click)="deriveFrom24K()" title="22K = 22/24 and 18K = 18/24 of 24K; 925 = 92.5% of 999">
+        <app-icon name="refresh" [size]="15" /> Derive from 24K
+      </button>
+    </div>
+
+    <div class="rate-grid">
+      @for (p of purities; track p) {
+        <div class="field">
+          <label [for]="'rate-' + p">{{ purityLabel(p) }}</label>
+          <input
+            [id]="'rate-' + p"
+            class="input input-lg"
+            type="number"
+            min="0"
+            inputmode="decimal"
+            [ngModel]="rates()[p]"
+            (ngModelChange)="setRate(p, $event)"
+          />
+        </div>
+      }
+    </div>
+
+    <div class="market">
+      <div class="market-text">
+        <strong>Market reference</strong>
+        @if (market.loading()) {
+          <span>Fetching international spot price…</span>
+        } @else if (market.reference(); as ref) {
+          <span>
+            24K spot ≈ {{ ref.gold24PerGram | inr }}/g
+            @if (ref.silver999PerGram) {
+              · silver ≈ {{ ref.silver999PerGram | inr: true }}/g
+            }
+            · excludes import duty and GST, so local board rates run higher
+          </span>
+        } @else if (market.error(); as err) {
+          <span>{{ err }}</span>
+        }
+      </div>
+      <div class="page-actions">
+        <button type="button" class="btn btn-ghost btn-sm" (click)="market.refresh()" [disabled]="market.loading()">
+          <app-icon name="refresh" [size]="15" /> Refresh
+        </button>
+        @if (market.reference()) {
+          <button type="button" class="btn btn-secondary btn-sm" (click)="useMarket()">Use as base</button>
+        }
+      </div>
+    </div>
+
+    <div class="card-actions">
+      <span class="hint">Last updated {{ ratesUpdated() }}</span>
+      <button type="button" class="btn btn-primary" (click)="saveRates()">
+        <app-icon name="check" [size]="16" /> {{ ratesDirty() ? 'Save rates' : 'Confirm today’s rates' }}
+      </button>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="card-head">
+      <div>
+        <h2 class="card-title">Shop &amp; invoice details</h2>
+        <p class="card-sub">Printed on every tax invoice and statement.</p>
+      </div>
+    </div>
+    @let p = profile();
+    <div class="stack-sm">
+      <div class="grid-2">
+        <div class="field">
+          <label for="s-name">Shop name</label>
+          <input id="s-name" class="input" [ngModel]="p.shopName" (ngModelChange)="updateProfile('shopName', $event)" />
+        </div>
+        <div class="field">
+          <label for="s-tag">Tagline</label>
+          <input id="s-tag" class="input" [ngModel]="p.tagline" (ngModelChange)="updateProfile('tagline', $event)" />
+        </div>
+      </div>
+      <div class="field">
+        <label for="s-address">Address</label>
+        <input id="s-address" class="input" [ngModel]="p.address" (ngModelChange)="updateProfile('address', $event)" />
+      </div>
+      <div class="grid-2">
+        <div class="field">
+          <label for="s-phone">Phone</label>
+          <input id="s-phone" class="input" [ngModel]="p.phone" (ngModelChange)="updateProfile('phone', $event)" />
+        </div>
+        <div class="field">
+          <label for="s-gstin">GSTIN</label>
+          <input id="s-gstin" class="input" [ngModel]="p.gstin" (ngModelChange)="updateProfile('gstin', $event)" />
+        </div>
+      </div>
+      <div class="grid-4">
+        <div class="field">
+          <label for="s-bill">Bill prefix</label>
+          <input id="s-bill" class="input" [ngModel]="p.billPrefix" (ngModelChange)="updateProfile('billPrefix', $event)" />
+        </div>
+        <div class="field">
+          <label for="s-rc">Receipt prefix</label>
+          <input id="s-rc" class="input" [ngModel]="p.receiptPrefix" (ngModelChange)="updateProfile('receiptPrefix', $event)" />
+        </div>
+        <div class="field">
+          <label for="s-credit">Credit period (days)</label>
+          <input id="s-credit" class="input" type="number" min="1" [ngModel]="p.creditDays" (ngModelChange)="updateProfile('creditDays', $event)" />
+        </div>
+        <div class="field">
+          <label for="s-gst">GST %</label>
+          <input id="s-gst" class="input" type="number" min="0" step="0.5" [ngModel]="p.gstPercent" (ngModelChange)="updateProfile('gstPercent', $event)" />
+        </div>
+      </div>
+      <p class="hint">Bills are numbered per financial year, e.g. {{ p.billPrefix || 'MSR' }}/26-27/0001. Unpaid bills older than the credit period show as overdue.</p>
+    </div>
+    <div class="card-actions">
+      <span></span>
+      <button type="button" class="btn btn-primary" (click)="saveProfile()">
+        <app-icon name="check" [size]="16" /> Save details
+      </button>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="card-head">
+      <div>
+        <h2 class="card-title">Appearance</h2>
+        <p class="card-sub">Dark mode is easier on the eyes in the evening.</p>
+      </div>
+    </div>
+    <div class="segmented" role="radiogroup" aria-label="Theme">
+      @for (t of themes; track t.key) {
+        <button type="button" role="radio" [attr.aria-checked]="ui.theme() === t.key" [class.on]="ui.theme() === t.key" (click)="ui.theme.set(t.key)">
+          <app-icon [name]="t.icon" [size]="15" /> {{ t.label }}
+        </button>
+      }
+    </div>
+  </section>
+
+  <section class="card" id="data">
+    <div class="card-head">
+      <div>
+        <h2 class="card-title">Your data</h2>
+        <p class="card-sub">
+          {{ counts().customers }} customers · {{ counts().bills }} bills · {{ counts().payments }} payments,
+          saved in this browser only.
+        </p>
+      </div>
+    </div>
+    <p class="notice notice-info">
+      <app-icon name="database" [size]="16" />
+      Records live on this computer. Download a backup regularly and keep it somewhere safe, such as a pen drive or Google Drive.
+    </p>
+    <div class="data-actions">
+      <button type="button" class="btn btn-secondary" (click)="exportBackup()">
+        <app-icon name="download" [size]="16" /> Download backup
+      </button>
+      <label class="btn btn-secondary file-btn">
+        <app-icon name="upload" [size]="16" /> Restore backup
+        <input type="file" accept="application/json,.json" (change)="importBackup($event)" />
+      </label>
+    </div>
+    <div class="danger-zone">
+      <div>
+        <strong>{{ store.isDemo() ? 'Ready to start your real book?' : 'Start over' }}</strong>
+        <p class="hint">
+          @if (store.isDemo()) {
+            Erase the sample records. Your shop details and rates stay.
+          } @else {
+            Load sample data to explore, or erase everything and begin again.
+          }
+        </p>
+      </div>
+      <div class="page-actions">
+        <button type="button" class="btn btn-ghost" (click)="resetDemo()">Load sample data</button>
+        <button type="button" class="btn btn-ghost btn-danger" (click)="clearAll()">
+          <app-icon name="trash" [size]="16" /> Erase all
+        </button>
+      </div>
+    </div>
+  </section>
+</div>

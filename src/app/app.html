@@ -1,247 +1,107 @@
-<main class="page-shell">
-  <header class="topbar">
-    <div class="brand-wrap">
-      <div class="brand-mark">MS</div>
-      <div>
-        <div class="brand-name">{{ businessName }}</div>
-        <div class="brand-tag">Customer payment ledger</div>
-      </div>
-    </div>
+<a class="skip-link" href="#main">Skip to content</a>
 
-    <div class="status-pill">Live tracking</div>
-  </header>
+<div class="shell" [class.nav-open]="ui.navOpen()">
+  <aside class="sidebar no-print" aria-label="Main navigation">
+    <a class="brand" routerLink="/dashboard">
+      <span class="brand-mark" aria-hidden="true">MSR</span>
+      <span class="brand-text">
+        <strong>{{ settings().shopName }}</strong>
+        <small>{{ settings().tagline }}</small>
+      </span>
+    </a>
 
-  <section class="hero">
-    <div class="hero-copy">
-      <span class="eyebrow">Jewellery business dashboard</span>
-      <h1>Track every purchase, payment, and gold settlement.</h1>
-      <p>
-        Search by customer name or phone number to see every transaction, outstanding balance,
-        and raw-gold exchange history in one place.
-      </p>
-
-      <div class="search-box">
-        <label for="customerSearch">Search customer</label>
-        <input
-          id="customerSearch"
-          type="text"
-          [(ngModel)]="searchTerm"
-          placeholder="Type customer name or phone number"
-        />
-      </div>
-    </div>
-
-    <div class="hero-card">
-      <div class="summary-header">
-        <span>Business overview</span>
-        <span class="green-pill">Updated today</span>
-      </div>
-
-      <div class="rate-editor">
-        <div class="rate-toolbar">
-          <label for="currentGoldRate">Today's gold rate / g</label>
-          <button class="secondary-btn" type="button" (click)="fetchLiveGoldPrice()" [disabled]="isLoadingGoldPrice">
-            {{ isLoadingGoldPrice ? 'Loading...' : 'Refresh live rate' }}
-          </button>
-        </div>
-        <div class="rate-input-row">
-          <input
-            id="currentGoldRate"
-            type="number"
-            min="0"
-            [(ngModel)]="currentGoldRate"
-            (ngModelChange)="updateGoldRate()"
-          />
-          <span>{{ formatCurrency(currentGoldRate) }}</span>
-        </div>
-        <small class="market-note">{{ goldPriceMessage }}</small>
-      </div>
-
-      <div class="summary-grid">
-        <div class="summary-box">
-          <span>Total revenue</span>
-          <strong>{{ formatCurrency(getDashboardRevenue()) }}</strong>
-        </div>
-        <div class="summary-box">
-          <span>Credit based</span>
-          <strong>{{ formatCurrency(getDashboardCredit()) }}</strong>
-        </div>
-        <div class="summary-box gold-rate-box">
-          <span>Gold rates</span>
-          <div class="gold-rate-list">
-            @for (purity of purityOrder; track purity) {
-              <div class="gold-rate-line">
-                <span>{{ purity }}</span>
-                <strong>{{ formatCurrency(getGoldRateForPurity(purity)) }}</strong>
-              </div>
-            }
-          </div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <section class="layout-grid">
-    <aside class="panel customer-panel">
-      <div class="panel-head">
-        <div>
-          <p class="muted">Customer list</p>
-          <h2>Search results</h2>
-        </div>
-      </div>
-
-      @if (filteredCustomers.length) {
-        <div class="customer-list">
-          @for (customer of filteredCustomers; track customer.id) {
-            <button
-              class="customer-row"
-              type="button"
-              [class.active]="selectedCustomer?.id === customer.id"
-              (click)="selectCustomer(customer.id)"
-            >
-              <div>
-                <strong>{{ customer.name }}</strong>
-                <small>{{ customer.phone }}</small>
-              </div>
-              <span>{{ formatCurrency(getCustomerOutstanding(customer)) }}</span>
-            </button>
-          }
-        </div>
-      } @else {
-        <div class="empty-state">No customer matches this search.</div>
+    <nav class="nav">
+      @for (item of nav; track item.path) {
+        <a
+          class="nav-link"
+          [routerLink]="item.path"
+          routerLinkActive="active"
+          ariaCurrentWhenActive="page"
+        >
+          <app-icon [name]="item.icon" />
+          <span>{{ item.label }}</span>
+        </a>
       }
-    </aside>
+    </nav>
 
-    <section class="panel detail-panel">
-      @if (selectedCustomer) {
-        <div class="detail-header">
+    <section class="rate-card" aria-labelledby="rate-card-title">
+      <div class="rate-card-head">
+        <h2 id="rate-card-title">Board rate / g</h2>
+        <a routerLink="/settings" fragment="rates">Update</a>
+      </div>
+      <dl>
+        @for (rate of rates(); track rate.label) {
           <div>
-            <p class="muted">Customer detail</p>
-            <h2>{{ selectedCustomer.name }}</h2>
+            <dt>{{ rate.label }}</dt>
+            <dd>{{ rate.value | inr }}</dd>
           </div>
-          <div class="meta-badges">
-            <span>{{ selectedCustomer.phone }}</span>
-            <span>{{ selectedCustomer.city }}</span>
-          </div>
-        </div>
-
-        <div class="stats-row">
-          <div class="metric">
-            <span>Total sales</span>
-            <strong>{{ formatCurrency(getTotalSales(selectedCustomer)) }}</strong>
-          </div>
-          <div class="metric">
-            <span>Cash received</span>
-            <strong>{{ formatCurrency(getTotalCashReceived(selectedCustomer)) }}</strong>
-          </div>
-          <div class="metric">
-            <span>Outstanding</span>
-            <strong class="warn">{{ formatCurrency(getCustomerOutstanding(selectedCustomer)) }}</strong>
-          </div>
-          <div class="metric">
-            <span>Gold due</span>
-            <strong>{{ formatGold(getGoldBalance(selectedCustomer)) }}</strong>
-          </div>
-        </div>
-
-        <div class="ledger-table-wrap">
-          <table class="ledger-table">
-            <thead>
-              <tr>
-                <th>Date</th>
-                <th>Item</th>
-                <th>Amount</th>
-                <th>Cash</th>
-                <th>Gold</th>
-                <th>Balance</th>
-                <th>Notes</th>
-              </tr>
-            </thead>
-            <tbody>
-              @for (transaction of sortTransactions(selectedCustomer.transactions); track transaction.id) {
-                <tr>
-                  <td>{{ transaction.date }}</td>
-                  <td>{{ transaction.item }}</td>
-                  <td>{{ formatCurrency(transaction.totalValue) }}</td>
-                  <td>{{ formatCurrency(transaction.cashPaid) }}</td>
-                  <td>{{ formatGold(transaction.rawGoldGrams) }} / {{ transaction.goldPurity }}</td>
-                  <td [class.negative]="transactionBalance(transaction) < 0">
-                    {{ formatCurrency(transactionBalance(transaction)) }}
-                  </td>
-                  <td>{{ transaction.notes || '—' }}</td>
-                </tr>
-              }
-            </tbody>
-          </table>
-        </div>
-      } @else {
-        <div class="empty-state">Select a customer to view payment history.</div>
-      }
+        }
+      </dl>
+      <p class="rate-card-foot" [class.stale]="ratesStale()">
+        @if (ratesStale()) {
+          <app-icon name="alert" [size]="13" />
+          Set today's rate · last {{ ratesUpdated() }}
+        } @else {
+          Updated {{ ratesUpdated() }}
+        }
+      </p>
     </section>
-  </section>
+  </aside>
 
-  <section class="panel form-panel">
-    <div class="panel-head">
-      <div>
-        <p class="muted">New transaction</p>
-        <h2>Add sale or payment</h2>
+  <button
+    type="button"
+    class="scrim no-print"
+    aria-label="Close menu"
+    tabindex="-1"
+    (click)="ui.navOpen.set(false)"
+  ></button>
+
+  <div class="main">
+    <header class="topbar no-print">
+      <button
+        type="button"
+        class="icon-btn menu-btn"
+        aria-label="Open menu"
+        (click)="ui.navOpen.set(true)"
+      >
+        <app-icon name="menu" />
+      </button>
+      <app-global-search class="topbar-search" />
+      <div class="topbar-actions">
+        <button type="button" class="btn btn-secondary" (click)="ui.openPayment()">
+          <app-icon name="wallet" [size]="16" />
+          <span class="hide-sm">Record payment</span>
+        </button>
+        <a class="btn btn-primary" routerLink="/bills/new">
+          <app-icon name="plus" [size]="16" />
+          <span>New bill</span>
+        </a>
       </div>
-    </div>
+    </header>
 
-    <form class="transaction-form" (ngSubmit)="addTransaction()">
-      <div class="field-grid">
-        <label>
-          <span>Item</span>
-          <input type="text" [(ngModel)]="newTransaction.item" name="item" placeholder="Necklace / Ring / Bangle" />
-        </label>
+    @if (store.storageError(); as problem) {
+      <p class="notice notice-danger banner no-print" role="alert">
+        <app-icon name="alert" [size]="16" /> {{ problem }}
+      </p>
+    }
 
-        <label>
-          <span>Date</span>
-          <input type="date" [(ngModel)]="newTransaction.date" name="date" />
-        </label>
+    @if (store.isDemo()) {
+      <p class="notice notice-info banner no-print">
+        <app-icon name="info" [size]="16" />
+        <span>
+          You are looking at <strong>sample data</strong> so you can explore the app.
+          When you are ready to enter your own customers,
+          <a routerLink="/settings" fragment="data">erase the sample data in Settings</a>.
+        </span>
+      </p>
+    }
 
-        <label>
-          <span>Total value</span>
-          <input type="number" min="0" [(ngModel)]="newTransaction.totalValue" name="totalValue" />
-        </label>
+    <main class="content" id="main" tabindex="-1">
+      <router-outlet />
+    </main>
+  </div>
+</div>
 
-        <label>
-          <span>Cash paid</span>
-          <input type="number" min="0" [(ngModel)]="newTransaction.cashPaid" name="cashPaid" />
-        </label>
-
-        <label>
-          <span>Raw gold (g)</span>
-          <input type="number" min="0" step="0.1" [(ngModel)]="newTransaction.rawGoldGrams" name="rawGoldGrams" />
-        </label>
-
-        <label>
-          <span>Gold purity</span>
-          <select [(ngModel)]="newTransaction.goldPurity" name="goldPurity" (ngModelChange)="syncGoldRateFromPurity()">
-            <option value="22K">22K</option>
-            <option value="18K">18K</option>
-            <option value="24K">24K</option>
-          </select>
-        </label>
-
-        <label>
-          <span>Gold rate / g</span>
-          <input type="number" min="0" [(ngModel)]="newTransaction.goldRate" name="goldRate" />
-          <small class="inline-hint">Use the current day rate above or adjust per transaction.</small>
-        </label>
-
-        <label>
-          <span>Gold returned (g)</span>
-          <input type="number" min="0" step="0.1" [(ngModel)]="newTransaction.goldReturnedGrams" name="goldReturnedGrams" />
-        </label>
-      </div>
-
-      <label class="full-width">
-        <span>Notes</span>
-        <textarea rows="3" [(ngModel)]="newTransaction.notes" name="notes" placeholder="Example: partial cash and raw gold received upfront"></textarea>
-      </label>
-
-      <button class="primary-btn" type="submit">Save transaction</button>
-    </form>
-  </section>
-</main>
+<app-payment-dialog />
+<app-customer-dialog />
+<app-toasts />

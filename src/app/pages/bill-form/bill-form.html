@@ -1,0 +1,363 @@
+@let t = totals();
+
+<a class="back-link" routerLink="/bills"><app-icon name="arrowLeft" [size]="16" /> Bills</a>
+
+<header class="page-head">
+  <div>
+    <h1 class="page-title">New bill</h1>
+    <p class="page-sub">Tax invoice <strong>{{ billNo() }}</strong> · GST {{ settings().gstPercent }}% on jewellery</p>
+  </div>
+</header>
+
+@if (submitted() && errors().length) {
+  <ul class="form-errors section-bottom" role="alert">
+    @for (error of errors(); track error) {
+      <li>{{ error }}</li>
+    }
+  </ul>
+}
+
+<div class="bill-layout">
+  <div class="stack">
+    <section class="card">
+      <div class="grid-customer">
+        <div class="field">
+          <label for="bill-customer">Customer</label>
+          <app-customer-picker
+            inputId="bill-customer"
+            [value]="customerId()"
+            (valueChange)="customerId.set($event)"
+            (create)="newCustomer($event)"
+          />
+        </div>
+        <div class="field">
+          <label for="bill-date">Bill date</label>
+          <input id="bill-date" class="input" type="date" [max]="today()" [(ngModel)]="date" />
+        </div>
+      </div>
+    </section>
+
+    <section class="card card-flush">
+      <div class="card-head">
+        <div>
+          <h2 class="card-title">Items</h2>
+          <p class="card-sub">Rates default to today's board rate · {{ t.netWeight | grams }} net</p>
+        </div>
+      </div>
+
+      <ol class="item-list">
+        @for (item of items(); track item.id; let i = $index) {
+          <li class="item">
+            <div class="item-index" aria-hidden="true">{{ i + 1 }}</div>
+            <div class="item-fields">
+              <div class="row-a">
+                <div class="field span-2">
+                  <label [for]="'desc-' + item.id">Description</label>
+                  <input
+                    [id]="'desc-' + item.id"
+                    class="input"
+                    placeholder="e.g. Lakshmi haram, 22K"
+                    [ngModel]="item.description"
+                    (ngModelChange)="updateItem(i, { description: $event })"
+                  />
+                </div>
+                <div class="field">
+                  <label [for]="'cat-' + item.id">Category</label>
+                  <select
+                    [id]="'cat-' + item.id"
+                    class="input"
+                    [ngModel]="item.category"
+                    (ngModelChange)="setCategory(i, $event)"
+                  >
+                    @for (c of categories; track c) {
+                      <option [value]="c">{{ c }}</option>
+                    }
+                  </select>
+                </div>
+                <div class="field">
+                  <label [for]="'purity-' + item.id">Purity</label>
+                  <select
+                    [id]="'purity-' + item.id"
+                    class="input"
+                    [ngModel]="item.purity"
+                    (ngModelChange)="setPurity(i, $event)"
+                  >
+                    <optgroup label="Gold">
+                      @for (p of goldPurities; track p) {
+                        <option [value]="p">{{ p }} gold</option>
+                      }
+                    </optgroup>
+                    <optgroup label="Silver">
+                      <option value="999">999 silver</option>
+                      <option value="925">925 silver</option>
+                    </optgroup>
+                  </select>
+                </div>
+                @if (metalOf(item.purity) === 'Gold' && item.category !== 'Coin') {
+                  <div class="field">
+                    <label [for]="'huid-' + item.id">HUID <span class="optional">hallmark</span></label>
+                    <input
+                      [id]="'huid-' + item.id"
+                      class="input mono"
+                      maxlength="6"
+                      placeholder="6 chars"
+                      [ngModel]="item.huid"
+                      (ngModelChange)="updateItem(i, { huid: $event })"
+                    />
+                  </div>
+                }
+                <div class="field pcs">
+                  <label [for]="'pcs-' + item.id">Pcs</label>
+                  <input
+                    [id]="'pcs-' + item.id"
+                    class="input"
+                    type="number"
+                    min="1"
+                    inputmode="numeric"
+                    [ngModel]="item.pieces"
+                    (ngModelChange)="updateItem(i, { pieces: $event })"
+                  />
+                </div>
+              </div>
+
+              <div class="row-b">
+                <div class="field">
+                  <label [for]="'gross-' + item.id">Gross wt (g)</label>
+                  <input
+                    [id]="'gross-' + item.id"
+                    class="input"
+                    type="number"
+                    min="0"
+                    step="0.001"
+                    inputmode="decimal"
+                    [ngModel]="item.grossWeight || null"
+                    (ngModelChange)="updateItem(i, { grossWeight: $event })"
+                  />
+                </div>
+                <div class="field">
+                  <label [for]="'net-' + item.id">Net wt (g)</label>
+                  <input
+                    [id]="'net-' + item.id"
+                    class="input"
+                    type="number"
+                    min="0"
+                    step="0.001"
+                    inputmode="decimal"
+                    [ngModel]="item.netWeight || null"
+                    (ngModelChange)="setNetWeight(i, $event)"
+                  />
+                </div>
+                <div class="field">
+                  <label [for]="'rate-' + item.id">Rate / g</label>
+                  <input
+                    [id]="'rate-' + item.id"
+                    class="input"
+                    type="number"
+                    min="0"
+                    inputmode="decimal"
+                    [ngModel]="item.rate"
+                    (ngModelChange)="updateItem(i, { rate: $event })"
+                  />
+                  @if (rateDiffers(item)) {
+                    <small class="hint">Board: {{ settings().rates[item.purity] | inr }}</small>
+                  }
+                </div>
+                <div class="field">
+                  <label [for]="'mk-' + item.id">Making</label>
+                  <div class="joined">
+                    <input
+                      [id]="'mk-' + item.id"
+                      class="input"
+                      type="number"
+                      min="0"
+                      step="0.5"
+                      inputmode="decimal"
+                      [ngModel]="item.makingValue"
+                      (ngModelChange)="updateItem(i, { makingValue: $event })"
+                    />
+                    <select
+                      class="input"
+                      aria-label="Making charge type"
+                      [ngModel]="item.makingType"
+                      (ngModelChange)="updateItem(i, { makingType: $event })"
+                    >
+                      <option value="percent">%</option>
+                      <option value="perGram">₹/g</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="field">
+                  <label [for]="'stone-' + item.id">Stones (₹)</label>
+                  <input
+                    [id]="'stone-' + item.id"
+                    class="input"
+                    type="number"
+                    min="0"
+                    inputmode="numeric"
+                    [ngModel]="item.stoneCharges || null"
+                    (ngModelChange)="updateItem(i, { stoneCharges: $event })"
+                  />
+                </div>
+                <div class="field amount">
+                  <span class="amount-label">Amount</span>
+                  <strong>{{ itemAmount(item) | inr }}</strong>
+                </div>
+              </div>
+            </div>
+            <button
+              type="button"
+              class="icon-btn sm btn-danger remove"
+              (click)="removeItem(i)"
+              [attr.aria-label]="'Remove item ' + (i + 1)"
+              title="Remove item"
+            >
+              <app-icon name="trash" [size]="15" />
+            </button>
+          </li>
+        }
+      </ol>
+      <div class="item-actions">
+        <button type="button" class="btn btn-secondary btn-sm" (click)="addItem()">
+          <app-icon name="plus" [size]="15" /> Add item
+        </button>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="field">
+        <label for="bill-notes">Notes on bill <span class="optional">optional</span></label>
+        <textarea
+          id="bill-notes"
+          class="input"
+          rows="2"
+          placeholder="e.g. Delivery on 12 Nov · resizing free"
+          [(ngModel)]="notes"
+        ></textarea>
+      </div>
+    </section>
+  </div>
+
+  <aside class="summary">
+    <section class="card">
+      <h2 class="card-title">Bill summary</h2>
+      <dl class="totals">
+        <div><dt>Metal value</dt><dd>{{ t.metalValue | inr: true }}</dd></div>
+        <div><dt>Making charges</dt><dd>{{ t.making | inr: true }}</dd></div>
+        @if (t.stones) {
+          <div><dt>Stone charges</dt><dd>{{ t.stones | inr: true }}</dd></div>
+        }
+        <div class="sub"><dt>Subtotal</dt><dd>{{ t.subtotal | inr: true }}</dd></div>
+        <div class="with-input">
+          <dt><label for="bill-discount">Discount</label></dt>
+          <dd>
+            <input
+              id="bill-discount"
+              class="input input-sm"
+              type="number"
+              min="0"
+              inputmode="numeric"
+              placeholder="0"
+              [(ngModel)]="discount"
+            />
+          </dd>
+        </div>
+        <div><dt>Taxable value</dt><dd>{{ t.taxable | inr: true }}</dd></div>
+        <div><dt>CGST {{ settings().gstPercent / 2 }}%</dt><dd>{{ t.cgst | inr: true }}</dd></div>
+        <div><dt>SGST {{ settings().gstPercent / 2 }}%</dt><dd>{{ t.sgst | inr: true }}</dd></div>
+        @if (t.roundOff) {
+          <div><dt>Round off</dt><dd>{{ t.roundOff | inr: true }}</dd></div>
+        }
+        <div class="grand"><dt>Bill total</dt><dd>{{ t.total | inr }}</dd></div>
+      </dl>
+    </section>
+
+    <section class="card">
+      <label class="switch">
+        <input type="checkbox" [(ngModel)]="oldGoldOn" />
+        <span>Old gold exchange</span>
+      </label>
+      @if (oldGoldOn()) {
+        <div class="grid-3 og">
+          <div class="field">
+            <label for="og-weight">Net wt (g)</label>
+            <input id="og-weight" class="input" type="number" min="0" step="0.001" inputmode="decimal" [(ngModel)]="ogWeight" />
+          </div>
+          <div class="field">
+            <label for="og-purity">Purity</label>
+            <select id="og-purity" class="input" [ngModel]="ogPurity()" (ngModelChange)="setOgPurity($event)">
+              @for (p of goldPurities; track p) {
+                <option [value]="p">{{ p }}</option>
+              }
+            </select>
+          </div>
+          <div class="field">
+            <label for="og-rate">Rate / g</label>
+            <input id="og-rate" class="input" type="number" min="0" inputmode="decimal" [(ngModel)]="ogRate" />
+          </div>
+        </div>
+        <dl class="totals compact">
+          <div><dt>Less: old gold</dt><dd>− {{ oldGold() | inr }}</dd></div>
+        </dl>
+      }
+      <dl class="totals">
+        <div class="grand"><dt>Net payable</dt><dd>{{ netPayable() | inr }}</dd></div>
+      </dl>
+    </section>
+
+    <section class="card">
+      <div class="pay-head">
+        <h2 class="card-title">Payment received now</h2>
+        <button type="button" class="btn btn-ghost btn-xs" (click)="payInFull()">Full amount</button>
+      </div>
+      <div class="field">
+        <label for="pay-amount" class="visually-hidden">Amount received</label>
+        <input
+          id="pay-amount"
+          class="input input-lg"
+          type="number"
+          min="0"
+          inputmode="numeric"
+          placeholder="₹ 0"
+          [(ngModel)]="payAmount"
+        />
+      </div>
+      <div class="segmented wrap pay-modes" role="radiogroup" aria-label="Payment mode">
+        @for (m of payModes; track m) {
+          <button type="button" role="radio" [attr.aria-checked]="payMode() === m" [class.on]="payMode() === m" (click)="payMode.set(m)">
+            {{ m }}
+          </button>
+        }
+      </div>
+      @if (payMode() !== 'Cash') {
+        <input class="input input-sm ref" placeholder="Reference (UPI ID / card / cheque no.)" aria-label="Payment reference" [(ngModel)]="payReference" />
+      }
+      @if (cashWarning()) {
+        <p class="notice notice-warning">
+          <app-icon name="alert" [size]="16" /> Cash of ₹2 lakh or more in a day is not permitted (Sec. 269ST).
+        </p>
+      }
+
+      <dl class="totals khata">
+        @if (customerRecord()) {
+          <div><dt>Previous balance</dt><dd>{{ previousBalance() | balance }}</dd></div>
+        }
+        <div>
+          <dt>{{ toKhata() >= 0 ? 'This bill to khata' : 'Extra held as advance' }}</dt>
+          <dd [class.text-danger]="toKhata() > 0" [class.text-good]="toKhata() <= 0">{{ toKhata() | balance }}</dd>
+        </div>
+        @if (customerRecord()) {
+          <div class="grand"><dt>New account balance</dt><dd>{{ newBalance() | balance }}</dd></div>
+        }
+      </dl>
+    </section>
+
+    <div class="save-bar">
+      <button type="button" class="btn btn-secondary" (click)="save(true)">
+        <app-icon name="printer" [size]="16" /> Save &amp; print
+      </button>
+      <button type="button" class="btn btn-primary" (click)="save()">
+        <app-icon name="check" [size]="16" /> Save bill
+      </button>
+    </div>
+  </aside>
+</div>

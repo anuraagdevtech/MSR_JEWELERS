@@ -1,0 +1,246 @@
+@let f = figures();
+@let d = dues();
+@let r = range();
+
+<header class="page-head">
+  <div>
+    <p class="eyebrow">{{ greeting() }}</p>
+    <h1 class="page-title">Shop overview</h1>
+    <p class="page-sub">{{ todayLabel() }} · showing {{ r.label }}</p>
+  </div>
+  <div class="segmented" role="radiogroup" aria-label="Period">
+    @for (p of periods; track p.key) {
+      <button
+        type="button"
+        role="radio"
+        [attr.aria-checked]="period() === p.key"
+        [class.on]="period() === p.key"
+        (click)="period.set(p.key)"
+      >
+        {{ p.label }}
+      </button>
+    }
+  </div>
+</header>
+
+<section class="kpi-grid" aria-label="Key figures">
+  <article class="kpi">
+    <span class="kpi-label"><span class="kpi-key" style="background: var(--series-debit)"></span>Sales billed · debit</span>
+    <strong class="kpi-value">{{ f.billed | inr }}</strong>
+    <span class="kpi-foot">
+      @if (delta(f.billed, f.prevBilled); as dl) {
+        <span class="delta" [class]="'delta ' + dl.dir">
+          <app-icon [name]="dl.dir === 'down' ? 'trendDown' : 'trendUp'" [size]="14" />{{ dl.text }}
+        </span>
+        {{ r.compare }}
+      } @else {
+        {{ f.bills }} bills this period
+      }
+    </span>
+  </article>
+
+  <article class="kpi">
+    <span class="kpi-label"><span class="kpi-key" style="background: var(--series-credit)"></span>Collections · credit</span>
+    <strong class="kpi-value">{{ f.collected | inr }}</strong>
+    <span class="kpi-foot">
+      @if (delta(f.collected, f.prevCollected); as dl) {
+        <span class="delta" [class]="'delta ' + dl.dir">
+          <app-icon [name]="dl.dir === 'down' ? 'trendDown' : 'trendUp'" [size]="14" />{{ dl.text }}
+        </span>
+        {{ r.compare }}
+      } @else {
+        incl. {{ f.oldGoldValue | inr }} old gold
+      }
+    </span>
+  </article>
+
+  <a class="kpi kpi-link" routerLink="/customers" [queryParams]="{ show: 'dues' }">
+    <span class="kpi-label"><app-icon name="wallet" [size]="15" />Outstanding dues</span>
+    <strong class="kpi-value">{{ d.outstanding | inr }}</strong>
+    <span class="kpi-foot">{{ d.withDues }} customers owe · {{ d.advances | inr }} held as advance</span>
+  </a>
+
+  <a class="kpi kpi-link" [class.alert]="d.overdue > 0" routerLink="/customers" [queryParams]="{ show: 'overdue' }">
+    <span class="kpi-label"><app-icon name="alert" [size]="15" />Overdue · over {{ store.settings().creditDays }} days</span>
+    <strong class="kpi-value" [class.text-danger]="d.overdue > 0">{{ d.overdue | inr }}</strong>
+    <span class="kpi-foot">{{ d.overdueCustomers }} customers to follow up</span>
+  </a>
+</section>
+
+<section class="mini-stats section-gap" aria-label="Period details">
+  <div><span>Bills raised</span><strong>{{ f.bills }}</strong></div>
+  <div><span>Average bill</span><strong>{{ f.avgBill | inr }}</strong></div>
+  <div><span>Metal sold (net)</span><strong>{{ f.weight | grams: 1 }}</strong></div>
+  <div><span>Old gold taken in</span><strong>{{ f.oldGoldGrams | grams: 1 }}</strong></div>
+  <div><span>New customers</span><strong>{{ f.newCustomers }}</strong></div>
+</section>
+
+<section class="split-wide section-gap">
+  <article class="card">
+    <div class="card-head">
+      <div>
+        <h2 class="card-title">Billed vs collected</h2>
+        <p class="card-sub">
+          Last 12 months · {{ trend().billedTotal | inr }} billed, {{ trend().collectedTotal | inr }} collected
+        </p>
+      </div>
+      <a class="card-link" routerLink="/ledger">Open ledger <app-icon name="chevronRight" [size]="14" /></a>
+    </div>
+    <app-column-chart
+      caption="Billed versus collected, last 12 months"
+      [labels]="trend().labels"
+      [fullLabels]="trend().fullLabels"
+      [series]="trend().series"
+      [height]="260"
+    />
+  </article>
+
+  <article class="card">
+    <div class="card-head">
+      <div>
+        <h2 class="card-title">Dues by age</h2>
+        <p class="card-sub">Unpaid balance by days since billing</p>
+      </div>
+    </div>
+    <app-bar-list [rows]="aging()" [format]="formatINR" emptyText="No dues outstanding. Every bill is settled." />
+    <p class="aging-total">
+      <span>Total receivable</span>
+      <strong>{{ d.outstanding | inr }}</strong>
+    </p>
+  </article>
+</section>
+
+<section class="split section-gap">
+  <article class="card">
+    <div class="card-head">
+      <div>
+        <h2 class="card-title">Collections by mode</h2>
+        <p class="card-sub">{{ r.label }}</p>
+      </div>
+    </div>
+    <app-bar-list
+      [rows]="modes()"
+      [format]="formatINR"
+      color="var(--series-credit)"
+      emptyText="No payments received in this period."
+    />
+  </article>
+
+  <article class="card">
+    <div class="card-head">
+      <div>
+        <h2 class="card-title">Sales by category</h2>
+        <p class="card-sub">Item value before discount and GST · {{ r.label }}</p>
+      </div>
+    </div>
+    <app-bar-list [rows]="categories()" [format]="formatINR" emptyText="No sales in this period." />
+  </article>
+</section>
+
+<section class="split-wide section-gap">
+  <article class="card card-flush">
+    <div class="card-head">
+      <div>
+        <h2 class="card-title">Highest dues</h2>
+        <p class="card-sub">Follow up with these customers first</p>
+      </div>
+      <a class="card-link" routerLink="/customers" [queryParams]="{ show: 'dues' }">
+        All customers with dues <app-icon name="chevronRight" [size]="14" />
+      </a>
+    </div>
+    @if (topDues().length) {
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th scope="col">Customer</th>
+              <th scope="col" class="num">Balance</th>
+              <th scope="col" class="num hide-md">Oldest due</th>
+              <th scope="col" class="hide-md">Last paid</th>
+              <th scope="col"><span class="visually-hidden">Actions</span></th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (row of topDues(); track row.customer.id) {
+              <tr>
+                <td>
+                  <div class="cell-main">
+                    <span class="avatar sm">{{ row.initials }}</span>
+                    <span class="cell-stack">
+                      <a class="row-link" [routerLink]="['/customers', row.customer.id]">{{ row.customer.name }}</a>
+                      <small>{{ row.customer.phone | phone }}</small>
+                    </span>
+                  </div>
+                </td>
+                <td class="num">
+                  <span class="strong">{{ row.summary.balance | inr }}</span>
+                  @if (row.summary.overdueAmount > 0) {
+                    <small class="block text-danger">{{ row.summary.overdueAmount | inr }} overdue</small>
+                  }
+                </td>
+                <td class="num hide-md">{{ row.summary.oldestDueDays }} days</td>
+                <td class="muted hide-md">{{ row.summary.lastPaymentDate | day }}</td>
+                <td class="num">
+                  <div class="row-actions">
+                    @if (row.whatsapp) {
+                      <a
+                        class="icon-btn sm"
+                        [href]="row.whatsapp"
+                        target="_blank"
+                        rel="noopener"
+                        [attr.aria-label]="'Send WhatsApp reminder to ' + row.customer.name"
+                        title="WhatsApp reminder"
+                      >
+                        <app-icon name="message" [size]="16" />
+                      </a>
+                    }
+                    <button
+                      type="button"
+                      class="btn btn-secondary btn-xs"
+                      (click)="ui.openPayment({ customerId: row.customer.id })"
+                    >
+                      Collect
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    } @else {
+      <div class="empty-state">
+        <app-icon name="check" [size]="32" />
+        <strong>No dues outstanding</strong>
+        Every customer account is settled.
+      </div>
+    }
+  </article>
+
+  <article class="card">
+    <div class="card-head">
+      <div>
+        <h2 class="card-title">Recent activity</h2>
+        <p class="card-sub">Latest debits and credits</p>
+      </div>
+      <a class="card-link" routerLink="/ledger">View all <app-icon name="chevronRight" [size]="14" /></a>
+    </div>
+    <ol class="activity">
+      @for (row of recent(); track row.entry.id) {
+        <li>
+          <span class="flow" [class.cr]="row.entry.type === 'credit'">{{ row.entry.type === 'credit' ? 'Cr' : 'Dr' }}</span>
+          <div class="activity-text">
+            <a [routerLink]="['/customers', row.entry.customerId]">{{ row.customer?.name }}</a>
+            <small>
+              {{ row.entry.source === 'bill' ? 'Bill ' + row.entry.ref : row.entry.mode || row.entry.ref }} ·
+              {{ row.entry.date | day: 'short' }}
+            </small>
+          </div>
+          <strong class="num">{{ row.entry.type === 'credit' ? '+' : '' }}{{ row.entry.amount | inr }}</strong>
+        </li>
+      } @empty {
+        <li class="text-muted">No activity yet. Create a bill to get started.</li>
+      }
+    </ol>
+  </article>
+</section>

@@ -1,0 +1,60 @@
+.print-only {
+  display: none;
+}
+
+@media print {
+  @page {
+    size: A4;
+    margin: 12mm;
+  }
+
+  :root {
+    color-scheme: light;
+  }
+
+  body {
+    background: #fff !important;
+    color: #000;
+    font-size: 12px;
+  }
+
+  .no-print,
+  .sidebar,
+  .topbar,
+  .scrim,
+  .toast-stack,
+  dialog {
+    display: none !important;
+  }
+
+  .print-only {
+    display: block;
+  }
+
+  .shell {
+    display: block !important;
+  }
+
+  .content {
+    padding: 0 !important;
+    max-width: none !important;
+  }
+
+  .card,
+  .kpi {
+    box-shadow: none !important;
+    border-color: #ccc !important;
+    break-inside: avoid;
+  }
+
+  .data-table thead th {
+    position: static;
+    background: #f3f3f3 !important;
+    color: #333 !important;
+  }
+
+  a {
+    color: inherit !important;
+    text-decoration: none !important;
+  }
+}
