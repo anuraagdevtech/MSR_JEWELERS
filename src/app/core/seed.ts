@@ -21,7 +21,7 @@ const DEMO_SILVER_999 = 215;
 
 export function defaultSettings(today = todayISO()): ShopSettings {
   return {
-    shopName: 'MSR Jewelers',
+    shopName: 'MSR Jewellers',
     tagline: 'Gold · Diamond · Silver',
     address: '12, Sayyaji Rao Road, Mysuru, Karnataka 570001',
     phone: '0821 242 0000',
@@ -39,7 +39,7 @@ export function emptyData(today = todayISO()): ShopData {
   return { version: 1, customers: [], bills: [], payments: [], settings: defaultSettings(today) };
 }
 
-type Profile = 'prompt' | 'installment' | 'slow' | 'wedding' | 'advance';
+type Profile = 'prompt' | 'instalment' | 'slow' | 'wedding' | 'advance';
 
 interface Template {
   category: ItemCategory;
@@ -73,45 +73,45 @@ const WEDDING_SET: ItemCategory[] = ['Necklace', 'Bangles', 'Mangalsutra', 'Earr
 const PEOPLE: Array<[string, string, Profile]> = [
   ['Anjali Sharma', 'Mysuru', 'wedding'],
   ['Ramesh Kumar', 'Hubballi', 'prompt'],
-  ['Lakshmi Narayan Rao', 'Bengaluru', 'installment'],
+  ['Lakshmi Narayan Rao', 'Bengaluru', 'instalment'],
   ['Kavya Hegde', 'Udupi', 'prompt'],
   ['Suresh Gowda', 'Mandya', 'slow'],
   ['Meera Iyer', 'Bengaluru', 'prompt'],
-  ['Prakash Shetty', 'Mangaluru', 'installment'],
+  ['Prakash Shetty', 'Mangaluru', 'instalment'],
   ['Divya Kulkarni', 'Belagavi', 'advance'],
-  ['Venkatesh Reddy', 'Bengaluru', 'installment'],
+  ['Venkatesh Reddy', 'Bengaluru', 'instalment'],
   ['Pooja Nayak', 'Shivamogga', 'prompt'],
   ['Manjunath Patil', 'Davanagere', 'slow'],
   ['Sneha Bhat', 'Mysuru', 'wedding'],
   ['Raghavendra Joshi', 'Dharwad', 'prompt'],
-  ['Bhavana Kamath', 'Udupi', 'installment'],
+  ['Bhavana Kamath', 'Udupi', 'instalment'],
   ['Srinivas Murthy', 'Tumakuru', 'prompt'],
-  ['Nandini Desai', 'Hubballi', 'installment'],
+  ['Nandini Desai', 'Hubballi', 'instalment'],
   ['Arjun Pai', 'Mangaluru', 'prompt'],
   ['Deepa Shenoy', 'Bengaluru', 'slow'],
   ['Mahesh Naik', 'Karwar', 'prompt'],
   ['Shruti Prabhu', 'Mangaluru', 'wedding'],
-  ['Ganesh Hegde', 'Sirsi', 'installment'],
+  ['Ganesh Hegde', 'Sirsi', 'instalment'],
   ['Rekha Gowda', 'Hassan', 'prompt'],
   ['Naveen Rao', 'Bengaluru', 'advance'],
-  ['Asha Kumari', 'Mysuru', 'installment'],
+  ['Asha Kumari', 'Mysuru', 'instalment'],
   ['Kiran Shetty', 'Udupi', 'prompt'],
   ['Padma Srinivasan', 'Bengaluru', 'slow'],
   ['Vijay Kulkarni', 'Belagavi', 'prompt'],
-  ['Geetha Ramesh', 'Chikkamagaluru', 'installment'],
+  ['Geetha Ramesh', 'Chikkamagaluru', 'instalment'],
   ['Rohit Patil', 'Hubballi', 'prompt'],
   ['Sunitha Bhat', 'Shivamogga', 'wedding'],
   ['Anil Kumar', 'Tumakuru', 'slow'],
-  ['Vani Hegde', 'Bengaluru', 'installment'],
+  ['Vani Hegde', 'Bengaluru', 'instalment'],
   ['Sanjay Reddy', 'Ballari', 'prompt'],
-  ['Hema Nagaraj', 'Mysuru', 'installment'],
+  ['Hema Nagaraj', 'Mysuru', 'instalment'],
   ['Ravi Shankar', 'Bengaluru', 'prompt'],
   ['Farhana Begum', 'Bengaluru', 'slow'],
   ['Joseph D’Souza', 'Mangaluru', 'advance'],
   ['Harpreet Kaur', 'Bengaluru', 'prompt'],
   // Walk-ins who first visited this month.
   ['Priya Menon', 'Bengaluru', 'prompt'],
-  ['Abdul Rahman', 'Mysuru', 'installment'],
+  ['Abdul Rahman', 'Mysuru', 'instalment'],
 ];
 
 const NEW_THIS_MONTH = 2;
@@ -351,7 +351,7 @@ export function generateDemoData(
           pay(addDays(date, int(6, 20)), due, true, 'Balance cleared');
         }
         break;
-      case 'installment':
+      case 'instalment':
         if (chance(0.85)) pay(date, roundTo(due * between(0.35, 0.6), 500), true, 'Advance at billing');
         instalments(20, 40, 0.25, 0.45, 6);
         break;
@@ -408,7 +408,7 @@ export function generateDemoData(
     const profile = PEOPLE[index][2];
     const count =
       profile === 'prompt' ? int(3, 7)
-        : profile === 'installment' ? int(2, 5)
+        : profile === 'instalment' ? int(2, 5)
           : profile === 'slow' ? int(1, 3)
             : profile === 'wedding' ? int(2, 4)
               : int(1, 3);
@@ -446,7 +446,7 @@ export function generateDemoData(
   });
 
   // Make sure the current month always has some counter activity to show.
-  const regulars = customers.filter((_, i) => ['prompt', 'installment'].includes(PEOPLE[i][2]));
+  const regulars = customers.filter((_, i) => ['prompt', 'instalment'].includes(PEOPLE[i][2]));
   for (let i = 0; i < 6; i++) {
     const customer = regulars[(i * 5 + 3) % regulars.length];
     const profile = PEOPLE[customers.indexOf(customer)][2];

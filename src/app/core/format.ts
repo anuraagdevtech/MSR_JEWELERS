@@ -78,11 +78,12 @@ export function formatBalance(value: number): string {
 
 export function initials(name: string): string {
   return name
-    .split(/\s+/)
+    .split(/[\s.@_-]+/)
+    .map((part) => part.match(/\p{L}/u)?.[0] ?? '')
     .filter(Boolean)
     .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase() ?? '')
-    .join('');
+    .join('')
+    .toUpperCase();
 }
 
 export function phoneDigits(phone: string): string {
@@ -104,18 +105,20 @@ const TENS = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 
 
 function belowHundred(n: number): string {
   if (n < 20) return ONES[n];
-  return `${TENS[Math.floor(n / 10)]}${n % 10 ? ` ${ONES[n % 10]}` : ''}`;
+  return `${TENS[Math.floor(n / 10)]}${n % 10 ? `-${ONES[n % 10]}` : ''}`;
 }
 
 function belowThousand(n: number): string {
   const hundred = Math.floor(n / 100);
   const rest = n % 100;
-  return [hundred ? `${ONES[hundred]} Hundred` : '', rest ? belowHundred(rest) : '']
-    .filter(Boolean)
-    .join(' ');
+  if (!hundred) return belowHundred(rest);
+  return `${ONES[hundred]} Hundred${rest ? ` and ${belowHundred(rest)}` : ''}`;
 }
 
-/** Amount in words using the Indian system (lakh / crore), as printed on invoices. */
+/**
+ * Amount in words in British English with the Indian system (lakh / crore), as printed on
+ * invoices: "Rupees Twelve Lakh Thirty-Four Thousand Five Hundred and Sixty-Seven Only".
+ */
 export function amountInWords(value: number): string {
   let n = Math.round(Math.abs(clean(value)));
   if (n === 0) return 'Rupees Zero Only';
@@ -129,6 +132,6 @@ export function amountInWords(value: number): string {
   if (crore) parts.push(`${crore >= 100 ? belowThousand(crore) : belowHundred(crore)} Crore`);
   if (lakh) parts.push(`${belowHundred(lakh)} Lakh`);
   if (thousand) parts.push(`${belowHundred(thousand)} Thousand`);
-  if (n) parts.push(belowThousand(n));
+  if (n) parts.push(n < 100 && parts.length ? `and ${belowHundred(n)}` : belowThousand(n));
   return `Rupees ${parts.join(' ')} Only`;
 }

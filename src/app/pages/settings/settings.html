@@ -63,7 +63,7 @@
 
     <div class="card-actions">
       <span class="hint">Last updated {{ ratesUpdated() }}</span>
-      <button type="button" class="btn btn-primary" (click)="saveRates()">
+      <button type="button" class="btn btn-primary" [disabled]="busy()" (click)="saveRates()">
         <app-icon name="check" [size]="16" /> {{ ratesDirty() ? 'Save rates' : 'Confirm today’s rates' }}
       </button>
     </div>
@@ -124,11 +124,62 @@
     </div>
     <div class="card-actions">
       <span></span>
-      <button type="button" class="btn btn-primary" (click)="saveProfile()">
+      <button type="button" class="btn btn-primary" [disabled]="busy()" (click)="saveProfile()">
         <app-icon name="check" [size]="16" /> Save details
       </button>
     </div>
   </section>
+
+  @if (store.cloud) {
+    <section class="card team">
+      <div class="card-head">
+        <div>
+          <h2 class="card-title">Team &amp; access</h2>
+          <p class="card-sub">Everyone signs in with a password and an authenticator-app code.</p>
+        </div>
+        <button type="button" class="btn btn-ghost btn-sm" (click)="loadTeam()" [disabled]="teamLoading()">
+          <app-icon name="refresh" [size]="15" /> Refresh
+        </button>
+      </div>
+      <ul class="team-list">
+        @for (m of team(); track m.userId) {
+          <li>
+            <span class="avatar sm">{{ (m.fullName || m.email).slice(0, 2).toUpperCase() }}</span>
+            <span class="cell-stack">
+              <strong>{{ m.fullName || m.email }} @if (m.isMe) { <span class="chip chip-accent">You</span> }</strong>
+              <small>{{ m.email }}</small>
+            </span>
+            @if (m.isMe) {
+              <span class="chip chip-good">Owner</span>
+            } @else {
+              <label class="visually-hidden" [for]="'role-' + m.userId">Access for {{ m.email }}</label>
+              <select
+                class="input input-sm role-select"
+                [id]="'role-' + m.userId"
+                [value]="m.role"
+                [disabled]="busy()"
+                (change)="setRole(m, $any($event.target).value)"
+              >
+                <option value="owner">Owner</option>
+                <option value="staff">Counter staff</option>
+                <option value="pending">No access</option>
+              </select>
+            }
+          </li>
+        } @empty {
+          <li class="text-muted">{{ teamLoading() ? 'Loading…' : 'No team members yet.' }}</li>
+        }
+      </ul>
+      <p class="notice notice-info">
+        <app-icon name="info" [size]="16" />
+        <span>
+          To add someone: Supabase dashboard → Authentication → Users → <strong>Add user</strong> (or Invite).
+          They appear here with <em>No access</em>; choose Owner or Counter staff. On first sign-in they
+          scan a QR code with Google or Microsoft Authenticator.
+        </span>
+      </p>
+    </section>
+  }
 
   <section class="card">
     <div class="card-head">
@@ -151,14 +202,18 @@
       <div>
         <h2 class="card-title">Your data</h2>
         <p class="card-sub">
-          {{ counts().customers }} customers · {{ counts().bills }} bills · {{ counts().payments }} payments,
-          saved in this browser only.
+          {{ counts().customers }} customers · {{ counts().bills }} bills · {{ counts().payments }} payments
+          · {{ store.cloud ? 'stored in your Supabase database' : 'saved in this browser only' }}.
         </p>
       </div>
     </div>
     <p class="notice notice-info">
       <app-icon name="database" [size]="16" />
-      Records live on this computer. Download a backup regularly and keep it somewhere safe, such as a pen drive or Google Drive.
+      @if (store.cloud) {
+        Records are shared by every signed-in device. Download a backup now and then as an extra copy.
+      } @else {
+        Records live on this computer. Download a backup regularly and keep it somewhere safe, such as a pen drive or Google Drive.
+      }
     </p>
     <div class="data-actions">
       <button type="button" class="btn btn-secondary" (click)="exportBackup()">
@@ -181,8 +236,8 @@
         </p>
       </div>
       <div class="page-actions">
-        <button type="button" class="btn btn-ghost" (click)="resetDemo()">Load sample data</button>
-        <button type="button" class="btn btn-ghost btn-danger" (click)="clearAll()">
+        <button type="button" class="btn btn-ghost" [disabled]="busy()" (click)="resetDemo()">Load sample data</button>
+        <button type="button" class="btn btn-ghost btn-danger" [disabled]="busy()" (click)="clearAll()">
           <app-icon name="trash" [size]="16" /> Erase all
         </button>
       </div>

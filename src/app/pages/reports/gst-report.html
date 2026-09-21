@@ -1,0 +1,193 @@
+@let mt = months().total;
+
+<section class="kpi-grid five" aria-label="GST totals">
+  <div class="kpi">
+    <span class="kpi-label">Invoices</span>
+    <strong class="kpi-value">{{ mt.invoices }}</strong>
+    <span class="kpi-foot">{{ b2b().length }} to GST-registered buyers</span>
+  </div>
+  <div class="kpi">
+    <span class="kpi-label">Taxable value</span>
+    <strong class="kpi-value">{{ mt.taxable | inr }}</strong>
+    <span class="kpi-foot">after discounts</span>
+  </div>
+  <div class="kpi">
+    <span class="kpi-label">CGST</span>
+    <strong class="kpi-value">{{ mt.cgst | inr }}</strong>
+    <span class="kpi-foot">central tax collected</span>
+  </div>
+  <div class="kpi">
+    <span class="kpi-label">SGST</span>
+    <strong class="kpi-value">{{ mt.sgst | inr }}</strong>
+    <span class="kpi-foot">state tax collected</span>
+  </div>
+  <div class="kpi">
+    <span class="kpi-label">Invoice value</span>
+    <strong class="kpi-value">{{ mt.value | inr }}</strong>
+    <span class="kpi-foot">tax {{ mt.cgst + mt.sgst | inr }}</span>
+  </div>
+</section>
+
+<p class="notice notice-info section-gap">
+  <app-icon name="info" [size]="16" />
+  <span>Figures come straight from your invoices to help with GSTR-1 and GSTR-3B. Have your accountant check them before filing. Old-gold purchases from customers carry no GST and are not included.</span>
+</p>
+
+<section class="card card-flush section-gap">
+  <div class="card-head">
+    <div>
+      <h2 class="card-title">Month-wise summary</h2>
+      <p class="card-sub">Outward supplies · intra-state (CGST + SGST)</p>
+    </div>
+    <div class="card-tools">
+      <button type="button" class="btn btn-ghost btn-sm" (click)="exportInvoices()">
+        <app-icon name="download" [size]="15" /> Invoice list
+      </button>
+      <button type="button" class="btn btn-secondary btn-sm" (click)="exportMonths()">
+        <app-icon name="download" [size]="15" /> Export
+      </button>
+    </div>
+  </div>
+  @if (months().rows.length) {
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th scope="col">Month</th>
+            <th scope="col" class="num">Invoices</th>
+            <th scope="col" class="num">Taxable value</th>
+            <th scope="col" class="num">CGST</th>
+            <th scope="col" class="num">SGST</th>
+            <th scope="col" class="num">Total tax</th>
+            <th scope="col" class="num">Invoice value</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (r of months().rows; track r.key) {
+            <tr>
+              <th scope="row">{{ r.month }}</th>
+              <td class="num">{{ r.invoices }}</td>
+              <td class="num">{{ r.taxable | inr: true }}</td>
+              <td class="num">{{ r.cgst | inr: true }}</td>
+              <td class="num">{{ r.sgst | inr: true }}</td>
+              <td class="num strong">{{ r.cgst + r.sgst | inr: true }}</td>
+              <td class="num">{{ r.value | inr }}</td>
+            </tr>
+          }
+        </tbody>
+        <tfoot>
+          <tr>
+            <th scope="row">Total</th>
+            <td class="num">{{ mt.invoices }}</td>
+            <td class="num">{{ mt.taxable | inr: true }}</td>
+            <td class="num">{{ mt.cgst | inr: true }}</td>
+            <td class="num">{{ mt.sgst | inr: true }}</td>
+            <td class="num">{{ mt.cgst + mt.sgst | inr: true }}</td>
+            <td class="num">{{ mt.value | inr }}</td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  } @else {
+    <div class="empty-state">
+      <app-icon name="file" [size]="32" />
+      <strong>No invoices in this period</strong>
+    </div>
+  }
+</section>
+
+<section class="card card-flush section-gap">
+  <div class="card-head">
+    <div>
+      <h2 class="card-title">HSN-wise summary</h2>
+      <p class="card-sub">For GSTR-1 Table 12 · quantity in grams (UQC: GMS)</p>
+    </div>
+    <button type="button" class="btn btn-secondary btn-sm" (click)="exportHsn()">
+      <app-icon name="download" [size]="15" /> Export
+    </button>
+  </div>
+  @if (hsn().length) {
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th scope="col">HSN</th>
+            <th scope="col">Description</th>
+            <th scope="col" class="num">Quantity</th>
+            <th scope="col" class="num">Pieces</th>
+            <th scope="col" class="num">Taxable value</th>
+            <th scope="col" class="num">Rate</th>
+            <th scope="col" class="num">CGST</th>
+            <th scope="col" class="num">SGST</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (r of hsn(); track r.hsn + r.rate) {
+            <tr>
+              <th scope="row">{{ r.hsn }}</th>
+              <td class="muted">{{ r.name }}</td>
+              <td class="num">{{ r.grams | grams }}</td>
+              <td class="num">{{ r.pieces }}</td>
+              <td class="num">{{ r.taxable | inr: true }}</td>
+              <td class="num">{{ r.rate }}%</td>
+              <td class="num">{{ r.cgst | inr: true }}</td>
+              <td class="num">{{ r.sgst | inr: true }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+    <p class="footnote">Bill-level discounts are shared across items in proportion to value, so HSN tax can differ from invoice totals by a few paise.</p>
+  } @else {
+    <div class="empty-state">
+      <strong>No items sold in this period</strong>
+    </div>
+  }
+</section>
+
+<section class="card card-flush section-gap">
+  <div class="card-head">
+    <div>
+      <h2 class="card-title">B2B invoices</h2>
+      <p class="card-sub">Sales to customers with a GSTIN, reported invoice by invoice</p>
+    </div>
+  </div>
+  @if (b2b().length) {
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th scope="col">Invoice</th>
+            <th scope="col">Customer</th>
+            <th scope="col">GSTIN</th>
+            <th scope="col" class="num">Taxable value</th>
+            <th scope="col" class="num">Tax</th>
+            <th scope="col" class="num">Invoice value</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (r of b2b(); track r.bill.id) {
+            <tr>
+              <td>
+                <div class="cell-stack">
+                  <a class="row-link" [routerLink]="['/bills', r.bill.id]">{{ r.bill.billNo }}</a>
+                  <small>{{ r.bill.date | day }}</small>
+                </div>
+              </td>
+              <td>{{ r.customer?.name }}</td>
+              <td class="muted">{{ r.customer?.gstin }}</td>
+              <td class="num">{{ r.totals.taxable | inr: true }}</td>
+              <td class="num">{{ r.totals.gst | inr: true }}</td>
+              <td class="num strong">{{ r.totals.total | inr }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  } @else {
+    <div class="empty-state">
+      <strong>No B2B invoices</strong>
+      Add a GSTIN to a customer's details and their bills will be listed here.
+    </div>
+  }
+</section>

@@ -2,7 +2,7 @@
 
 <div class="shell" [class.nav-open]="ui.navOpen()">
   <aside class="sidebar no-print" aria-label="Main navigation">
-    <a class="brand" routerLink="/dashboard">
+    <a class="brand" routerLink="/">
       <span class="brand-mark" aria-hidden="true">MSR</span>
       <span class="brand-text">
         <strong>{{ settings().shopName }}</strong>
@@ -11,11 +11,12 @@
     </a>
 
     <nav class="nav">
-      @for (item of nav; track item.path) {
+      @for (item of nav(); track item.path) {
         <a
           class="nav-link"
           [routerLink]="item.path"
           routerLinkActive="active"
+          [routerLinkActiveOptions]="{ exact: item.path === '/bills' }"
           ariaCurrentWhenActive="page"
         >
           <app-icon [name]="item.icon" />
@@ -27,7 +28,9 @@
     <section class="rate-card" aria-labelledby="rate-card-title">
       <div class="rate-card-head">
         <h2 id="rate-card-title">Board rate / g</h2>
-        <a routerLink="/settings" fragment="rates">Update</a>
+        @if (auth.isOwner()) {
+          <a routerLink="/settings" fragment="rates">Update</a>
+        }
       </div>
       <dl>
         @for (rate of rates(); track rate.label) {
@@ -38,7 +41,7 @@
         }
       </dl>
       <p class="rate-card-foot" [class.stale]="ratesStale()">
-        @if (ratesStale()) {
+        @if (ratesStale() && auth.isOwner()) {
           <app-icon name="alert" [size]="13" />
           Set today's rate · last {{ ratesUpdated() }}
         } @else {
@@ -46,6 +49,19 @@
         }
       </p>
     </section>
+
+    @if (auth.cloud) {
+      <div class="user-card">
+        <span class="avatar sm">{{ initials() }}</span>
+        <span class="user-text">
+          <strong>{{ auth.displayName() }}</strong>
+          <small>{{ auth.isOwner() ? 'Owner' : 'Counter staff' }} · 2FA on</small>
+        </span>
+        <button type="button" class="icon-btn sm" (click)="signOut()" aria-label="Sign out" title="Sign out">
+          <app-icon name="logout" [size]="16" />
+        </button>
+      </div>
+    }
   </aside>
 
   <button
@@ -85,7 +101,7 @@
       </p>
     }
 
-    @if (store.isDemo()) {
+    @if (store.isDemo() && auth.isOwner()) {
       <p class="notice notice-info banner no-print">
         <app-icon name="info" [size]="16" />
         <span>
@@ -97,11 +113,24 @@
     }
 
     <main class="content" id="main" tabindex="-1">
-      <router-outlet />
+      @if (store.loaded()) {
+        <router-outlet />
+      } @else if (store.loadError(); as problem) {
+        <div class="card empty-state">
+          <app-icon name="alert" [size]="32" />
+          <strong>Could not load the shop's records</strong>
+          {{ problem }}
+          <button type="button" class="btn btn-primary btn-sm" (click)="store.load()">Try again</button>
+        </div>
+      } @else {
+        <div class="loading-state" role="status">
+          <span class="spinner" aria-hidden="true"></span>
+          Opening the books…
+        </div>
+      }
     </main>
   </div>
 </div>
 
 <app-payment-dialog />
 <app-customer-dialog />
-<app-toasts />

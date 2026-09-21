@@ -1,11 +1,19 @@
 @let t = totals();
 
-<a class="back-link" routerLink="/bills"><app-icon name="arrowLeft" [size]="16" /> Bills</a>
+<a class="back-link" [routerLink]="auth.isOwner() ? '/bills' : '/counter'">
+  <app-icon name="arrowLeft" [size]="16" /> {{ auth.isOwner() ? 'Bills' : 'Counter' }}
+</a>
 
 <header class="page-head">
   <div>
     <h1 class="page-title">New bill</h1>
-    <p class="page-sub">Tax invoice <strong>{{ billNo() }}</strong> · GST {{ settings().gstPercent }}% on jewellery</p>
+    <p class="page-sub">
+      @if (store.cloud) {
+        Tax invoice · number assigned on saving · GST {{ settings().gstPercent }}% on jewellery
+      } @else {
+        Tax invoice <strong>{{ billNo() }}</strong> · GST {{ settings().gstPercent }}% on jewellery
+      }
+    </p>
   </div>
 </header>
 
@@ -338,25 +346,25 @@
       }
 
       <dl class="totals khata">
-        @if (customerRecord()) {
+        @if (customerRecord() && auth.isOwner()) {
           <div><dt>Previous balance</dt><dd>{{ previousBalance() | balance }}</dd></div>
         }
         <div>
           <dt>{{ toKhata() >= 0 ? 'This bill to khata' : 'Extra held as advance' }}</dt>
           <dd [class.text-danger]="toKhata() > 0" [class.text-good]="toKhata() <= 0">{{ toKhata() | balance }}</dd>
         </div>
-        @if (customerRecord()) {
+        @if (customerRecord() && auth.isOwner()) {
           <div class="grand"><dt>New account balance</dt><dd>{{ newBalance() | balance }}</dd></div>
         }
       </dl>
     </section>
 
     <div class="save-bar">
-      <button type="button" class="btn btn-secondary" (click)="save(true)">
+      <button type="button" class="btn btn-secondary" [disabled]="busy()" (click)="save(true)">
         <app-icon name="printer" [size]="16" /> Save &amp; print
       </button>
-      <button type="button" class="btn btn-primary" (click)="save()">
-        <app-icon name="check" [size]="16" /> Save bill
+      <button type="button" class="btn btn-primary" [disabled]="busy()" (click)="save()">
+        <app-icon name="check" [size]="16" /> {{ busy() ? 'Saving…' : 'Save bill' }}
       </button>
     </div>
   </aside>

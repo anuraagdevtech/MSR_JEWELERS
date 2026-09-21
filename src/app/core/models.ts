@@ -98,6 +98,8 @@ export interface ShopSettings {
   gstPercent: number;
   rates: RateCard;
   ratesUpdatedAt: string;
+  /** Cloud mode: the shared book currently holds generated sample records. */
+  sampleData?: boolean;
 }
 
 export interface ShopData {

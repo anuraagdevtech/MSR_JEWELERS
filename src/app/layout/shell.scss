@@ -159,6 +159,72 @@
   }
 }
 
+.user-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 8px 0;
+  border-top: 1px solid var(--sidebar-border);
+
+  .avatar {
+    background: var(--sidebar-active);
+    color: var(--gold-200);
+  }
+
+  .icon-btn {
+    color: var(--sidebar-muted);
+
+    &:hover {
+      background: var(--sidebar-hover);
+      color: var(--sidebar-strong);
+    }
+  }
+}
+
+.user-text {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+  line-height: 1.3;
+
+  strong {
+    color: var(--sidebar-strong);
+    font-size: 0.875rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  small {
+    color: var(--sidebar-muted);
+    font-size: 0.75rem;
+  }
+}
+
+.loading-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  min-height: 50vh;
+  color: var(--text-3);
+}
+
+.spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--border-strong);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .scrim {
   display: none;
 }

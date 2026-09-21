@@ -63,13 +63,17 @@ export class ColumnChart {
   readonly series = input.required<ColumnSeries[]>();
   readonly height = input(240);
   readonly caption = input('');
+  /** Formats exact values (tooltip, table). Defaults to rupees. */
+  readonly format = input<(value: number) => string>(formatINR);
+  /** Formats y-axis ticks. Defaults to compact rupees (₹4.3L). */
+  readonly axisFormat = input<(value: number) => string>(formatINRCompact);
+  /** Adds a totals row to the table view; off for ratios, where a sum means nothing. */
+  readonly showTotal = input(true);
 
   protected readonly width = signal(640);
   protected readonly active = signal<number | null>(null);
   protected readonly showTable = signal(false);
   protected readonly pad = PAD;
-  protected readonly format = formatINR;
-  protected readonly compact = formatINRCompact;
 
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
 

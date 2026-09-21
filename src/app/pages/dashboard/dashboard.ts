@@ -15,6 +15,7 @@ import {
 } from '../../core/dates';
 import { formatDate, formatGrams, formatINR, formatMonth, initials } from '../../core/format';
 import { whatsappReminderLink } from '../../core/reminders';
+import { rankItems, saleLines, summariseItems } from '../../core/analytics';
 import { PaymentMode } from '../../core/models';
 import { ColumnChart, ColumnSeries } from '../../shared/charts/column-chart';
 import { BarList, BarRow } from '../../shared/charts/bar-list';
@@ -284,6 +285,17 @@ export class DashboardPage {
         label: category,
         value: Math.round(entry.amount),
         note: `${formatGrams(entry.grams, 1)} · ${entry.pieces} ${entry.pieces === 1 ? 'piece' : 'pieces'}`,
+      }));
+  });
+
+  protected readonly bestSellers = computed<BarRow[]>(() => {
+    const lines = saleLines(this.store.bills(), this.store.billTotals(), this.range());
+    return rankItems(summariseItems(lines), 'revenue')
+      .slice(0, 6)
+      .map((item) => ({
+        label: `${item.description} · ${item.purity}`,
+        value: Math.round(item.revenue),
+        note: `${item.pieces} ${item.pieces === 1 ? 'piece' : 'pieces'} · ${formatGrams(item.grams, 1)}`,
       }));
   });
 

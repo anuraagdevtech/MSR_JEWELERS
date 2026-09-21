@@ -141,12 +141,16 @@ export class CustomerDetailPage {
     this.ui.openPayment({ customerId: this.id(), billId });
   }
 
-  protected removePayment(payment: Payment): void {
+  protected async removePayment(payment: Payment): Promise<void> {
     if (!confirm(`Delete receipt ${payment.receiptNo} for ₹${payment.amount.toLocaleString('en-IN')}? The balance will go back up.`)) {
       return;
     }
-    this.store.deletePayment(payment.id);
-    this.ui.toast(`Receipt ${payment.receiptNo} deleted`, 'info');
+    try {
+      await this.store.deletePayment(payment.id);
+      this.ui.toast(`Receipt ${payment.receiptNo} deleted`, 'info');
+    } catch (error) {
+      this.ui.toast((error as Error).message, 'error');
+    }
   }
 
   protected printStatement(): void {

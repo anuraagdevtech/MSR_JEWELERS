@@ -44,10 +44,10 @@
   @if (flow() !== 'debit') {
     <div class="field">
       <label for="ledger-mode">Mode</label>
-      <select id="ledger-mode" class="input" [value]="mode()" (change)="mode.set($any($event.target).value)">
-        <option value="">All modes</option>
+      <select id="ledger-mode" class="input" (change)="mode.set($any($event.target).value)">
+        <option value="" [selected]="!mode()">All modes</option>
         @for (m of modes; track m) {
-          <option [value]="m">{{ m }}</option>
+          <option [value]="m" [selected]="m === mode()">{{ m }}</option>
         }
       </select>
     </div>

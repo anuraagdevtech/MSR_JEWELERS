@@ -80,6 +80,31 @@
   }
 }
 
+.team-list {
+  display: grid;
+  gap: 4px;
+  margin: 0 0 14px;
+  padding: 0;
+  list-style: none;
+
+  li {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .cell-stack {
+    flex: 1;
+  }
+}
+
+.role-select {
+  width: auto;
+  min-width: 150px;
+}
+
 .danger-zone {
   display: flex;
   flex-wrap: wrap;

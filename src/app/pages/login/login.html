@@ -1,0 +1,182 @@
+<main class="login">
+  <section class="panel" aria-labelledby="login-title">
+    <div class="brand">
+      <span class="mark" aria-hidden="true">MSR</span>
+      <div>
+        <p class="shop">MSR Jewellers</p>
+        <p class="tag">Gold · Diamond · Silver</p>
+      </div>
+    </div>
+
+    @switch (auth.stage()) {
+      @case ('loading') {
+        <div class="state" role="status"><span class="spinner" aria-hidden="true"></span> Checking your session…</div>
+      }
+
+      @case ('signed-out') {
+        @switch (view()) {
+          @case ('password') {
+            <h1 id="login-title">Sign in</h1>
+            <p class="lead">Owners and counter staff only. You'll also need the code from your authenticator app.</p>
+            @if (auth.notice(); as notice) {
+              <p class="notice notice-info"><app-icon name="lock" [size]="16" /> {{ notice }}</p>
+            }
+            <form class="stack" (ngSubmit)="signIn()" novalidate>
+              <div class="field">
+                <label for="login-email">Email</label>
+                <input id="login-email" class="input input-lg" type="email" name="email" autocomplete="username" autofocus [(ngModel)]="email" />
+              </div>
+              <div class="field">
+                <div class="label-row">
+                  <label for="login-password">Password</label>
+                  <button type="button" class="link-btn" (click)="view.set('forgot'); error.set(null)">Forgot password?</button>
+                </div>
+                <input id="login-password" class="input input-lg" type="password" name="password" autocomplete="current-password" [(ngModel)]="password" />
+              </div>
+              @if (error(); as problem) {
+                <p class="form-errors single" role="alert">{{ problem }}</p>
+              }
+              <button type="submit" class="btn btn-primary btn-block" [disabled]="busy()">
+                {{ busy() ? 'Signing in…' : 'Continue' }}
+              </button>
+            </form>
+          }
+          @case ('forgot') {
+            <h1 id="login-title">Reset your password</h1>
+            <p class="lead">We'll email you a link. After opening it you'll confirm with your authenticator code, then choose a new password.</p>
+            <form class="stack" (ngSubmit)="sendReset()" novalidate>
+              <div class="field">
+                <label for="reset-email">Email</label>
+                <input id="reset-email" class="input input-lg" type="email" name="email" autocomplete="username" [(ngModel)]="email" />
+              </div>
+              @if (error(); as problem) {
+                <p class="form-errors single" role="alert">{{ problem }}</p>
+              }
+              <button type="submit" class="btn btn-primary btn-block" [disabled]="busy()">
+                {{ busy() ? 'Sending…' : 'Email me a reset link' }}
+              </button>
+              <button type="button" class="btn btn-ghost btn-block" (click)="view.set('password'); error.set(null)">Back to sign in</button>
+            </form>
+          }
+          @case ('sent') {
+            <h1 id="login-title">Check your email</h1>
+            <p class="lead">If <strong>{{ email() }}</strong> has an account, a reset link is on its way. It works once and expires in an hour.</p>
+            <button type="button" class="btn btn-secondary btn-block" (click)="view.set('password')">Back to sign in</button>
+          }
+        }
+      }
+
+      @case ('verify') {
+        <h1 id="login-title">Enter your code</h1>
+        <p class="lead">
+          <app-icon name="smartphone" [size]="16" />
+          Open your authenticator app and type the 6-digit code for <strong>MSR Jewellers</strong>.
+        </p>
+        <form class="stack" (ngSubmit)="verify()" novalidate>
+          <label for="login-code" class="visually-hidden">6-digit code</label>
+          <input
+            #codeField
+            id="login-code"
+            class="input code-input"
+            name="code"
+            inputmode="numeric"
+            autocomplete="one-time-code"
+            maxlength="6"
+            placeholder="••••••"
+            [value]="code()"
+            (input)="onCodeInput($any($event.target).value)"
+          />
+          @if (error(); as problem) {
+            <p class="form-errors single" role="alert">{{ problem }}</p>
+          }
+          <button type="submit" class="btn btn-primary btn-block" [disabled]="busy() || code().length !== 6">
+            {{ busy() ? 'Checking…' : 'Verify' }}
+          </button>
+          <button type="button" class="btn btn-ghost btn-block" (click)="useAnotherAccount()">Use a different account</button>
+        </form>
+        <p class="help">Lost your phone? Another owner can reset your two-factor login from the Supabase dashboard.</p>
+      }
+
+      @case ('enrol') {
+        <h1 id="login-title">Turn on two-factor login</h1>
+        <p class="lead">A one-time setup. Every sign-in will then need a code from your phone, so a stolen password alone can't open the shop's books.</p>
+        <ol class="steps">
+          <li>Install <strong>Google Authenticator</strong> or <strong>Microsoft Authenticator</strong> on your phone.</li>
+          <li>
+            In the app, tap <strong>+</strong> and scan this code.
+            @if (enrolment(); as e) {
+              <img class="qr" [src]="e.qr" alt="QR code to add MSR Jewellers to your authenticator app" width="180" height="180" />
+              @if (showSecret()) {
+                <code class="secret">{{ e.secret }}</code>
+              } @else {
+                <button type="button" class="link-btn" (click)="showSecret.set(true)">Can't scan? Show the setup key</button>
+              }
+            } @else if (!error()) {
+              <span class="state inline"><span class="spinner" aria-hidden="true"></span> Preparing your code…</span>
+            }
+          </li>
+          <li>Type the 6-digit code the app shows.</li>
+        </ol>
+        <form class="stack" (ngSubmit)="confirmEnrolment()" novalidate>
+          <label for="enrol-code" class="visually-hidden">6-digit code</label>
+          <input
+            id="enrol-code"
+            class="input code-input"
+            name="code"
+            inputmode="numeric"
+            autocomplete="one-time-code"
+            maxlength="6"
+            placeholder="••••••"
+            [value]="code()"
+            (input)="onCodeInput($any($event.target).value)"
+          />
+          @if (error(); as problem) {
+            <p class="form-errors single" role="alert">{{ problem }}</p>
+          }
+          <button type="submit" class="btn btn-primary btn-block" [disabled]="busy() || !enrolment() || code().length !== 6">
+            {{ busy() ? 'Checking…' : 'Turn on and continue' }}
+          </button>
+          <button type="button" class="btn btn-ghost btn-block" (click)="useAnotherAccount()">Cancel and sign out</button>
+        </form>
+      }
+
+      @case ('no-access') {
+        <h1 id="login-title">Waiting for access</h1>
+        <p class="lead">
+          You're signed in as <strong>{{ auth.email() }}</strong> with two-factor on, but an owner hasn't given you access yet.
+          Ask them to open <em>Settings → Team &amp; access</em> and choose your role.
+        </p>
+        @if (error(); as problem) {
+          <p class="notice notice-info" role="status">{{ problem }}</p>
+        }
+        <div class="stack">
+          <button type="button" class="btn btn-primary btn-block" [disabled]="busy()" (click)="checkAgain()">Check again</button>
+          <button type="button" class="btn btn-ghost btn-block" (click)="useAnotherAccount()">Sign out</button>
+        </div>
+      }
+
+      @case ('recovery') {
+        <h1 id="login-title">Choose a new password</h1>
+        <p class="lead">At least 10 characters. Avoid the shop name or phone numbers.</p>
+        <form class="stack" (ngSubmit)="savePassword()" novalidate>
+          <div class="field">
+            <label for="new-password">New password</label>
+            <input id="new-password" class="input input-lg" type="password" name="new" autocomplete="new-password" [(ngModel)]="newPassword" />
+          </div>
+          <div class="field">
+            <label for="confirm-password">Type it again</label>
+            <input id="confirm-password" class="input input-lg" type="password" name="confirm" autocomplete="new-password" [(ngModel)]="confirmPassword" />
+          </div>
+          @if (error(); as problem) {
+            <p class="form-errors single" role="alert">{{ problem }}</p>
+          }
+          <button type="submit" class="btn btn-primary btn-block" [disabled]="busy()">
+            {{ busy() ? 'Saving…' : 'Save password and continue' }}
+          </button>
+        </form>
+      }
+    }
+
+    <p class="secure"><app-icon name="shield" [size]="14" /> Protected by two-factor sign-in</p>
+  </section>
+</main>

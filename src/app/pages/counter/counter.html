@@ -1,0 +1,109 @@
+@let s = summary();
+
+<header class="page-head">
+  <div>
+    <p class="eyebrow">{{ todayLabel() }}</p>
+    <h1 class="page-title">Counter</h1>
+    <p class="page-sub">
+      @if (auth.isOwner()) {
+        Everything billed and received at the shop today.
+      } @else {
+        Your bills and receipts for today.
+      }
+    </p>
+  </div>
+</header>
+
+<section class="actions" aria-label="Quick actions">
+  <a class="action primary" routerLink="/bills/new">
+    <app-icon name="receipt" [size]="26" />
+    <span><strong>New bill</strong><small>Sale with GST, old gold and payment</small></span>
+  </a>
+  <button type="button" class="action" (click)="ui.openPayment()">
+    <app-icon name="wallet" [size]="26" />
+    <span><strong>Record payment</strong><small>Instalment or advance</small></span>
+  </button>
+  <button type="button" class="action" (click)="ui.openCustomer()">
+    <app-icon name="userPlus" [size]="26" />
+    <span><strong>Add customer</strong><small>Name, mobile and city</small></span>
+  </button>
+</section>
+
+<section class="kpi-grid section-gap" aria-label="Today so far">
+  <div class="kpi">
+    <span class="kpi-label"><span class="kpi-key" style="background: var(--series-debit)"></span>Billed today</span>
+    <strong class="kpi-value">{{ s.billed | inr }}</strong>
+    <span class="kpi-foot">{{ s.bills }} {{ s.bills === 1 ? 'bill' : 'bills' }}</span>
+  </div>
+  <div class="kpi">
+    <span class="kpi-label"><span class="kpi-key" style="background: var(--series-credit)"></span>Received today</span>
+    <strong class="kpi-value">{{ s.received | inr }}</strong>
+    <span class="kpi-foot">{{ s.receipts }} {{ s.receipts === 1 ? 'receipt' : 'receipts' }}</span>
+  </div>
+  <div class="kpi">
+    <span class="kpi-label"><app-icon name="wallet" [size]="15" />Cash in drawer</span>
+    <strong class="kpi-value">{{ s.cash | inr }}</strong>
+    <span class="kpi-foot">cash received today, to hand over</span>
+  </div>
+  <div class="kpi">
+    <span class="kpi-label"><app-icon name="gem" [size]="15" />Old gold taken in</span>
+    <strong class="kpi-value">{{ s.oldGold | grams: 2 }}</strong>
+    <span class="kpi-foot">keep aside for melting</span>
+  </div>
+</section>
+
+@if (s.modes.length) {
+  <section class="mini-stats section-gap" aria-label="Received by mode">
+    @for (m of s.modes; track m.mode) {
+      <div><span>{{ m.mode }}</span><strong>{{ m.amount | inr }}</strong></div>
+    }
+  </section>
+}
+
+<section class="card card-flush section-gap">
+  <div class="card-head">
+    <div>
+      <h2 class="card-title">Today's entries</h2>
+      <p class="card-sub">Newest first</p>
+    </div>
+  </div>
+  @if (entries().length) {
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th scope="col">Time</th>
+            <th scope="col">Voucher</th>
+            <th scope="col">Customer</th>
+            <th scope="col">Details</th>
+            <th scope="col" class="num">Amount</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (e of entries(); track e.id) {
+            <tr>
+              <td class="muted nowrap">{{ e.time }}</td>
+              <td class="nowrap">
+                <span class="flow" [class.cr]="e.kind === 'receipt'">{{ e.kind === 'receipt' ? 'Cr' : 'Dr' }}</span>
+                @if (e.kind === 'bill') {
+                  <a class="row-link voucher" [routerLink]="['/bills', e.billId]">{{ e.ref }}</a>
+                } @else {
+                  <span class="strong voucher">{{ e.ref }}</span>
+                }
+              </td>
+              <td>{{ e.customer }}</td>
+              <td class="details">{{ e.detail }}</td>
+              <td class="num strong">{{ e.kind === 'receipt' ? '+' : '' }}{{ e.amount | inr }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  } @else {
+    <div class="empty-state">
+      <app-icon name="receipt" [size]="32" />
+      <strong>Nothing entered yet today</strong>
+      Bills and receipts you make will show here.
+    </div>
+  }
+</section>

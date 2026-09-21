@@ -110,7 +110,18 @@
   </article>
 </section>
 
-<section class="split section-gap">
+<section class="split-3 section-gap">
+  <article class="card">
+    <div class="card-head">
+      <div>
+        <h2 class="card-title">Best sellers</h2>
+        <p class="card-sub">Top items by sales value · {{ r.label }}</p>
+      </div>
+      <a class="card-link" routerLink="/reports/items">Full list <app-icon name="chevronRight" [size]="14" /></a>
+    </div>
+    <app-bar-list [rows]="bestSellers()" [format]="formatINR" emptyText="No sales in this period." />
+  </article>
+
   <article class="card">
     <div class="card-head">
       <div>

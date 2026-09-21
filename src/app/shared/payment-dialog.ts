@@ -12,6 +12,7 @@ import {
 import { FormsModule } from '@angular/forms';
 import { ShopStore } from '../core/store';
 import { PaymentDialogOptions, UiService } from '../core/ui.service';
+import { AuthService } from '../core/auth.service';
 import { PaymentMode, Purity } from '../core/models';
 import { GOLD_PURITIES, oldGoldValue } from '../core/calc';
 import { todayISO } from '../core/dates';
@@ -41,6 +42,7 @@ const CASH_LIMIT = 200_000;
 export class PaymentDialog {
   protected readonly store = inject(ShopStore);
   private readonly ui = inject(UiService);
+  protected readonly auth = inject(AuthService);
   private readonly dialog = viewChild<ElementRef<HTMLDialogElement>>('dialog');
 
   protected readonly modes = MODES;
@@ -59,6 +61,7 @@ export class PaymentDialog {
   protected readonly goldPurity = signal<Purity>('22K');
   protected readonly goldRate = signal<number | null>(null);
   protected readonly submitted = signal(false);
+  protected readonly busy = signal(false);
 
   protected readonly customer = computed(() => this.store.customerById().get(this.customerId()));
   protected readonly balance = computed(
@@ -156,24 +159,31 @@ export class PaymentDialog {
     this.ui.openCustomer({ initialQuery: typed, onSaved: (id) => this.onCustomer(id) });
   }
 
-  protected save(): void {
+  protected async save(): Promise<void> {
     this.submitted.set(true);
-    if (this.errors().length) return;
+    if (this.errors().length || this.busy()) return;
     const mode = this.mode();
-    const payment = this.store.addPayment(this.customerId(), {
-      billId: this.billId() || undefined,
-      date: this.date(),
-      amount: this.effectiveAmount(),
-      mode,
-      reference: mode === 'Cash' || mode === 'Old gold' ? undefined : this.reference().trim() || undefined,
-      oldGold:
-        mode === 'Old gold'
-          ? { weight: Number(this.goldWeight()), purity: this.goldPurity(), rate: Number(this.goldRate()) }
-          : undefined,
-      notes: this.notes().trim() || undefined,
-    });
-    this.ui.toast(`Receipt ${payment.receiptNo} saved · ${formatINR(payment.amount)} from ${this.customer()?.name}`);
-    this.close();
+    this.busy.set(true);
+    try {
+      const payment = await this.store.addPayment(this.customerId(), {
+        billId: this.billId() || undefined,
+        date: this.date(),
+        amount: this.effectiveAmount(),
+        mode,
+        reference: mode === 'Cash' || mode === 'Old gold' ? undefined : this.reference().trim() || undefined,
+        oldGold:
+          mode === 'Old gold'
+            ? { weight: Number(this.goldWeight()), purity: this.goldPurity(), rate: Number(this.goldRate()) }
+            : undefined,
+        notes: this.notes().trim() || undefined,
+      });
+      this.ui.toast(`Receipt ${payment.receiptNo} saved · ${formatINR(payment.amount)} from ${this.customer()?.name}`);
+      this.close();
+    } catch (error) {
+      this.ui.toast((error as Error).message, 'error');
+    } finally {
+      this.busy.set(false);
+    }
   }
 
   protected close(): void {

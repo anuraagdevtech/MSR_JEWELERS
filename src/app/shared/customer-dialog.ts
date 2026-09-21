@@ -13,6 +13,7 @@ import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { ShopStore } from '../core/store';
 import { CustomerDialogOptions, UiService } from '../core/ui.service';
+import { AuthService } from '../core/auth.service';
 import { phoneDigits } from '../core/format';
 import { Icon } from './icon';
 
@@ -87,6 +88,7 @@ const CITIES = [
               <label for="cust-gstin">GSTIN <span class="optional">B2B only</span></label>
               <input id="cust-gstin" class="input" name="gstin" [(ngModel)]="gstin" />
             </div>
+            @if (auth.isOwner()) {
             <div class="field">
               <label for="cust-opening">Opening balance (₹)</label>
               <input
@@ -99,6 +101,7 @@ const CITIES = [
               />
               <small class="hint">Old khata dues. Use a minus sign for an advance held.</small>
             </div>
+            }
           </div>
           <div class="field">
             <label for="cust-notes">Notes <span class="optional">optional</span></label>
@@ -115,15 +118,15 @@ const CITIES = [
         </div>
 
         <footer class="modal-foot">
-          @if (editingId() && canDelete()) {
+          @if (editingId() && canDelete() && auth.isOwner()) {
             <button type="button" class="btn btn-ghost btn-danger me-auto" (click)="remove()">
               <app-icon name="trash" [size]="16" /> Delete
             </button>
           }
           <button type="button" class="btn btn-ghost" (click)="close()">Cancel</button>
-          <button type="submit" class="btn btn-primary">
+          <button type="submit" class="btn btn-primary" [disabled]="busy()">
             <app-icon name="check" [size]="16" />
-            {{ editingId() ? 'Save changes' : 'Add customer' }}
+            {{ busy() ? 'Saving…' : editingId() ? 'Save changes' : 'Add customer' }}
           </button>
         </footer>
       </form>
@@ -134,6 +137,7 @@ export class CustomerDialog {
   private readonly store = inject(ShopStore);
   private readonly ui = inject(UiService);
   private readonly router = inject(Router);
+  protected readonly auth = inject(AuthService);
   private readonly dialog = viewChild<ElementRef<HTMLDialogElement>>('dialog');
 
   protected readonly cities = CITIES;
@@ -147,6 +151,7 @@ export class CustomerDialog {
   protected readonly openingBalance = signal<number | null>(null);
   protected readonly notes = signal('');
   protected readonly submitted = signal(false);
+  protected readonly busy = signal(false);
   private onSaved?: (id: string) => void;
 
   protected readonly duplicate = computed(() => {
@@ -207,9 +212,9 @@ export class CustomerDialog {
     this.submitted.set(false);
   }
 
-  protected save(): void {
+  protected async save(): Promise<void> {
     this.submitted.set(true);
-    if (this.errors().length) return;
+    if (this.errors().length || this.busy()) return;
     const digits = phoneDigits(this.phone()).slice(-10);
     const input = {
       name: this.name().trim().replace(/\s+/g, ' '),
@@ -222,27 +227,38 @@ export class CustomerDialog {
       notes: this.notes().trim() || undefined,
     };
     const editingId = this.editingId();
-    let id: string;
-    if (editingId) {
-      this.store.updateCustomer(editingId, input);
-      id = editingId;
-      this.ui.toast(`${input.name} updated`);
-    } else {
-      id = this.store.addCustomer(input).id;
-      this.ui.toast(`${input.name} added to customers`);
+    this.busy.set(true);
+    try {
+      let id: string;
+      if (editingId) {
+        await this.store.updateCustomer(editingId, input);
+        id = editingId;
+        this.ui.toast(`${input.name} updated`);
+      } else {
+        id = (await this.store.addCustomer(input)).id;
+        this.ui.toast(`${input.name} added to customers`);
+      }
+      const callback = this.onSaved;
+      this.close();
+      callback?.(id);
+    } catch (error) {
+      this.ui.toast((error as Error).message, 'error');
+    } finally {
+      this.busy.set(false);
     }
-    const callback = this.onSaved;
-    this.close();
-    callback?.(id);
   }
 
-  protected remove(): void {
+  protected async remove(): Promise<void> {
     const id = this.editingId();
     if (!id || !confirm(`Delete ${this.name()}? This cannot be undone.`)) return;
-    if (this.store.deleteCustomer(id)) {
-      this.ui.toast('Customer deleted', 'info');
-      this.close();
-      void this.router.navigate(['/customers']);
+    try {
+      if (await this.store.deleteCustomer(id)) {
+        this.ui.toast('Customer deleted', 'info');
+        this.close();
+        void this.router.navigate(['/customers']);
+      }
+    } catch (error) {
+      this.ui.toast((error as Error).message, 'error');
     }
   }
 

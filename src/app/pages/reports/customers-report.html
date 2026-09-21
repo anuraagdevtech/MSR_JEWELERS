@@ -1,0 +1,141 @@
+@let k = kpis();
+
+<section class="kpi-grid five" aria-label="Customer figures">
+  <div class="kpi">
+    <span class="kpi-label">Buying customers</span>
+    <strong class="kpi-value">{{ k.buyers }}</strong>
+    <span class="kpi-foot">of {{ k.totalCustomers }} on the books</span>
+  </div>
+  <div class="kpi">
+    <span class="kpi-label"><span class="kpi-key" style="background: var(--series-debit)"></span>New buyers</span>
+    <strong class="kpi-value">{{ k.fresh }}</strong>
+    <span class="kpi-foot">first purchase in this period</span>
+  </div>
+  <div class="kpi">
+    <span class="kpi-label"><span class="kpi-key" style="background: var(--series-credit)"></span>Returning buyers</span>
+    <strong class="kpi-value">{{ k.returning }}</strong>
+    <span class="kpi-foot">had bought before</span>
+  </div>
+  <div class="kpi">
+    <span class="kpi-label">Bought more than once</span>
+    <strong class="kpi-value">{{ percent(k.repeatRate) }}</strong>
+    <span class="kpi-foot">of buyers in this period</span>
+  </div>
+  <div class="kpi">
+    <span class="kpi-label">Average spend</span>
+    <strong class="kpi-value">{{ k.avgSpend | inr }}</strong>
+    <span class="kpi-foot">per buying customer</span>
+  </div>
+</section>
+
+<section class="split-wide section-gap">
+  <article class="card">
+    <div class="card-head">
+      <div>
+        <h2 class="card-title">New vs returning buyers</h2>
+        <p class="card-sub">Customers who bought each month</p>
+      </div>
+    </div>
+    <app-column-chart
+      caption="New and returning buyers by month"
+      [labels]="monthly().labels.short"
+      [fullLabels]="monthly().labels.full"
+      [series]="monthly().series"
+      [format]="count"
+      [axisFormat]="count"
+      [height]="240"
+    />
+  </article>
+  <article class="card">
+    <div class="card-head">
+      <div>
+        <h2 class="card-title">Where buyers come from</h2>
+        <p class="card-sub">Sales by customer's city</p>
+      </div>
+    </div>
+    <app-bar-list [rows]="cities()" [format]="inr" emptyText="No sales in this period." />
+  </article>
+</section>
+
+<section class="split-wide section-gap">
+  <article class="card card-flush">
+    <div class="card-head">
+      <div>
+        <h2 class="card-title">Top customers</h2>
+        <p class="card-sub">By purchases in this period</p>
+      </div>
+    </div>
+    @if (top().length) {
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th scope="col" class="rank">#</th>
+              <th scope="col">Customer</th>
+              <th scope="col" class="num">Bills</th>
+              <th scope="col" class="num">Spent</th>
+              <th scope="col" class="num">Balance now</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (row of top(); track row.customer.id; let i = $index) {
+              <tr>
+                <td class="rank">{{ i + 1 }}</td>
+                <td>
+                  <div class="cell-main">
+                    <span class="avatar sm">{{ row.initials }}</span>
+                    <span class="cell-stack">
+                      <a class="row-link" [routerLink]="['/customers', row.customer.id]">{{ row.customer.name }}</a>
+                      <small>{{ row.customer.city }}</small>
+                    </span>
+                  </div>
+                </td>
+                <td class="num">{{ row.bills }}</td>
+                <td class="num strong">{{ row.spend | inr }}</td>
+                <td class="num" [class.text-danger]="row.summary.balance > 0">{{ row.summary.balance | balance }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    } @else {
+      <div class="empty-state">
+        <app-icon name="users" [size]="32" />
+        <strong>No purchases in this period</strong>
+      </div>
+    }
+  </article>
+
+  <article class="card card-flush">
+    <div class="card-head">
+      <div>
+        <h2 class="card-title">Worth a call</h2>
+        <p class="card-sub">Big spenders with no purchase for {{ dormantDays }}+ days</p>
+      </div>
+    </div>
+    @if (dormant().length) {
+      <ul class="call-list">
+        @for (row of dormant(); track row.customer.id) {
+          <li>
+            <span class="cell-stack">
+              <a class="row-link" [routerLink]="['/customers', row.customer.id]">{{ row.customer.name }}</a>
+              <small>Last bought {{ row.summary.lastBillDate | day }} · {{ row.days }} days ago</small>
+            </span>
+            <span class="cell-stack num">
+              <span class="strong">{{ row.summary.billed | inr }}</span>
+              <small>lifetime</small>
+            </span>
+            <a class="icon-btn sm" [href]="'tel:' + row.customer.phone.replace(' ', '')" [attr.aria-label]="'Call ' + row.customer.name" title="Call">
+              <app-icon name="phone" [size]="15" />
+            </a>
+          </li>
+        }
+      </ul>
+    } @else {
+      <div class="empty-state">
+        <app-icon name="check" [size]="32" />
+        <strong>Everyone has visited recently</strong>
+      </div>
+    }
+  </article>
+</section>

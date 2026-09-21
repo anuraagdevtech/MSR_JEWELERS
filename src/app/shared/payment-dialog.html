@@ -22,7 +22,7 @@
         />
       </div>
 
-      @if (customer()) {
+      @if (customer() && auth.isOwner()) {
         <div class="field">
           <label for="payment-bill">Adjust against</label>
           <select
@@ -109,7 +109,7 @@
           <div class="field">
             <div class="label-row">
               <label for="payment-amount">Amount (₹)</label>
-              @if (suggested() > 0) {
+              @if (suggested() > 0 && auth.isOwner()) {
                 <button type="button" class="link-btn" (click)="amount.set(suggested())">
                   {{ billId() ? 'Bill balance' : 'Full due' }} {{ suggested() | inr }}
                 </button>
@@ -163,7 +163,7 @@
         </p>
       }
 
-      @if (customer()) {
+      @if (customer() && auth.isOwner()) {
         <div class="balance-strip">
           <div>
             <span>Balance now</span>
@@ -191,9 +191,9 @@
 
     <footer class="modal-foot">
       <button type="button" class="btn btn-ghost" (click)="close()">Cancel</button>
-      <button type="submit" class="btn btn-primary">
+      <button type="submit" class="btn btn-primary" [disabled]="busy()">
         <app-icon name="check" [size]="16" />
-        Save receipt · {{ effectiveAmount() | inr }}
+        {{ busy() ? 'Saving…' : 'Save receipt · ' + (effectiveAmount() | inr) }}
       </button>
     </footer>
   </form>

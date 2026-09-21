@@ -1,0 +1,149 @@
+@let k = kpis();
+@let m = monthly();
+
+<section class="kpi-grid five" aria-label="Sales totals">
+  <div class="kpi">
+    <span class="kpi-label"><span class="kpi-key" style="background: var(--series-debit)"></span>Sales incl. GST</span>
+    <strong class="kpi-value">{{ k.sales | inr }}</strong>
+    <span class="kpi-foot">{{ k.count }} bills · GST {{ k.gst | inr }}</span>
+  </div>
+  <div class="kpi">
+    <span class="kpi-label">Making charges earned</span>
+    <strong class="kpi-value">{{ k.making | inr }}</strong>
+    <span class="kpi-foot">{{ percent(k.makingRate, 1) }} of metal value</span>
+  </div>
+  <div class="kpi">
+    <span class="kpi-label">Average bill</span>
+    <strong class="kpi-value">{{ k.avg | inr }}</strong>
+    <span class="kpi-foot">Taxable {{ k.taxable | inr }}</span>
+  </div>
+  <div class="kpi">
+    <span class="kpi-label">Metal sold</span>
+    <strong class="kpi-value">{{ k.goldGrams | grams: 1 }}</strong>
+    <span class="kpi-foot">gold · {{ k.silverGrams | grams: 0 }} silver</span>
+  </div>
+  <div class="kpi">
+    <span class="kpi-label">Discounts given</span>
+    <strong class="kpi-value">{{ k.discount | inr }}</strong>
+    <span class="kpi-foot">{{ k.taxable ? percent((k.discount / (k.taxable + k.discount)) * 100, 1) : '0%' }} of item value</span>
+  </div>
+</section>
+
+<section class="split section-gap">
+  <article class="card">
+    <div class="card-head">
+      <div>
+        <h2 class="card-title">Sales by month</h2>
+        <p class="card-sub">Invoice value including GST</p>
+      </div>
+    </div>
+    <app-column-chart
+      caption="Sales by month"
+      [labels]="m.labels.short"
+      [fullLabels]="m.labels.full"
+      [series]="m.salesSeries"
+      [height]="240"
+    />
+  </article>
+  <article class="card">
+    <div class="card-head">
+      <div>
+        <h2 class="card-title">Making charges by month</h2>
+        <p class="card-sub">Labour and wastage billed on top of metal: your margin before costs</p>
+      </div>
+    </div>
+    <app-column-chart
+      caption="Making charges by month"
+      [labels]="m.labels.short"
+      [fullLabels]="m.labels.full"
+      [series]="m.makingSeries"
+      [height]="240"
+    />
+  </article>
+</section>
+
+<section class="split-wide section-gap">
+  <article class="card">
+    <div class="card-head">
+      <div>
+        <h2 class="card-title">Gold out vs old gold in</h2>
+        <p class="card-sub">Net grams sold against grams taken in exchange: what you need to restock</p>
+      </div>
+    </div>
+    <app-column-chart
+      caption="Gold sold versus old gold taken in, grams"
+      [labels]="m.labels.short"
+      [fullLabels]="m.labels.full"
+      [series]="m.goldSeries"
+      [format]="grams"
+      [axisFormat]="gramsAxis"
+      [height]="240"
+    />
+  </article>
+  <article class="card">
+    <div class="card-head">
+      <div>
+        <h2 class="card-title">Busiest days</h2>
+        <p class="card-sub">Sales by day of the week</p>
+      </div>
+    </div>
+    <app-bar-list [rows]="weekdays()" [format]="inr" emptyText="No sales in this period." />
+  </article>
+</section>
+
+<section class="split section-gap">
+  <article class="card">
+    <div class="card-head">
+      <div>
+        <h2 class="card-title">By metal and purity</h2>
+        <p class="card-sub">Item value after discount, before GST</p>
+      </div>
+    </div>
+    <app-bar-list [rows]="purities()" [format]="inr" emptyText="No sales in this period." />
+  </article>
+
+  <article class="card card-flush">
+    <div class="card-head">
+      <div>
+        <h2 class="card-title">Month by month</h2>
+        <p class="card-sub">The figures behind the charts</p>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table class="data-table compact">
+        <thead>
+          <tr>
+            <th scope="col">Month</th>
+            <th scope="col" class="num">Bills</th>
+            <th scope="col" class="num">Sales</th>
+            <th scope="col" class="num">Making</th>
+            <th scope="col" class="num">Avg bill</th>
+            <th scope="col" class="num">Gold out</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (row of m.rows; track row.month) {
+            <tr>
+              <th scope="row">{{ row.month }}</th>
+              <td class="num">{{ row.bills }}</td>
+              <td class="num">{{ row.sales | inr }}</td>
+              <td class="num">{{ row.making | inr }}</td>
+              <td class="num">{{ row.avg | inr }}</td>
+              <td class="num">{{ row.goldOut | grams: 1 }}</td>
+            </tr>
+          }
+        </tbody>
+        <tfoot>
+          <tr>
+            <th scope="row">Total</th>
+            <td class="num">{{ k.count }}</td>
+            <td class="num">{{ k.sales | inr }}</td>
+            <td class="num">{{ k.making | inr }}</td>
+            <td class="num">{{ k.avg | inr }}</td>
+            <td class="num">{{ k.goldGrams | grams: 1 }}</td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  </article>
+</section>

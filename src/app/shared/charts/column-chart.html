@@ -31,19 +31,21 @@
           <tr>
             <th scope="row">{{ fullLabel(i) }}</th>
             @for (s of series(); track s.name) {
-              <td class="num">{{ format(s.values[i]) }}</td>
+              <td class="num">{{ format()(s.values[i]) }}</td>
             }
           </tr>
         }
       </tbody>
+      @if (showTotal()) {
       <tfoot>
         <tr>
           <th scope="row">Total</th>
           @for (s of series(); track s.name) {
-            <td class="num">{{ format(total(s)) }}</td>
+            <td class="num">{{ format()(total(s)) }}</td>
           }
         </tr>
       </tfoot>
+      }
     </table>
   </div>
 } @else {
@@ -65,7 +67,7 @@
           [attr.y2]="y(tick)"
         />
         <text class="tick" [attr.x]="pad.left - 8" [attr.y]="y(tick)" text-anchor="end" dominant-baseline="middle">
-          {{ compact(tick) }}
+          {{ axisFormat()(tick) }}
         </text>
       }
 
@@ -110,7 +112,7 @@
           <div class="tooltip-row">
             <span class="swatch" [style.background]="row.color"></span>
             <span>{{ row.name }}</span>
-            <b>{{ format(row.value) }}</b>
+            <b>{{ format()(row.value) }}</b>
           </div>
         }
       </div>

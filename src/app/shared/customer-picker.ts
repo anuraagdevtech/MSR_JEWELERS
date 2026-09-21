@@ -11,6 +11,7 @@ import {
   viewChild,
 } from '@angular/core';
 import { ShopStore } from '../core/store';
+import { AuthService } from '../core/auth.service';
 import { initials, phoneDigits } from '../core/format';
 import { Icon } from './icon';
 import { BalancePipe, PhonePipe } from './pipes';
@@ -192,6 +193,7 @@ let pickerCount = 0;
 })
 export class CustomerPicker {
   private readonly store = inject(ShopStore);
+  private readonly auth = inject(AuthService);
 
   readonly value = model<string>('');
   readonly placeholder = input('Search by name, phone or city');
@@ -233,7 +235,9 @@ export class CustomerPicker {
     return initials(name);
   }
 
+  /** Balances are for owners only; staff see 0, which hides the figure. */
   protected balanceOf(customerId: string): number {
+    if (!this.auth.isOwner()) return 0;
     return this.store.customerSummaries().get(customerId)?.balance ?? 0;
   }
 

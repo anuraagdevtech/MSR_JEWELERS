@@ -1,0 +1,142 @@
+@let k = kpis();
+
+<div class="filters report-filters">
+  <div class="field">
+    <span class="filter-label" id="rank-label">Rank by</span>
+    <div class="segmented" role="radiogroup" aria-labelledby="rank-label">
+      @for (r of ranks; track r.key) {
+        <button type="button" role="radio" [attr.aria-checked]="rankBy() === r.key" [class.on]="rankBy() === r.key" (click)="setRank(r.key)">
+          {{ r.label }}
+        </button>
+      }
+    </div>
+  </div>
+  <div class="field">
+    <label for="items-category">Category</label>
+    <select id="items-category" class="input" (change)="category.set($any($event.target).value)">
+      <option value="" [selected]="!category()">All categories</option>
+      @for (c of categories; track c) {
+        <option [value]="c" [selected]="c === category()">{{ c }}</option>
+      }
+    </select>
+  </div>
+</div>
+
+<section class="kpi-grid" aria-label="Items sold">
+  <div class="kpi">
+    <span class="kpi-label">Best seller</span>
+    <strong class="kpi-value kpi-text">{{ k.best ? k.best.description : '—' }}</strong>
+    <span class="kpi-foot">
+      @if (k.best) {
+        {{ k.best.purity }} · {{ k.best.pieces }} pcs · {{ percent(k.bestShare, 1) }} of sales
+      } @else {
+        No sales in this period
+      }
+    </span>
+  </div>
+  <div class="kpi">
+    <span class="kpi-label">Pieces sold</span>
+    <strong class="kpi-value">{{ k.pieces }}</strong>
+    <span class="kpi-foot">{{ k.designs }} different designs</span>
+  </div>
+  <div class="kpi">
+    <span class="kpi-label">Sales value</span>
+    <strong class="kpi-value">{{ k.revenue | inr }}</strong>
+    <span class="kpi-foot">After discount, before GST</span>
+  </div>
+  <div class="kpi">
+    <span class="kpi-label">Average making charge</span>
+    <strong class="kpi-value">{{ percent(k.makingRate, 1) }}</strong>
+    <span class="kpi-foot">of metal value</span>
+  </div>
+</section>
+
+<section class="split-3 section-gap">
+  <article class="card">
+    <div class="card-head">
+      <div>
+        <h2 class="card-title">Top 8 items</h2>
+        <p class="card-sub">Same design and purity counted together</p>
+      </div>
+    </div>
+    <app-bar-list [rows]="topBars()" [format]="metricFormat()" emptyText="No items sold in this period." />
+  </article>
+  <article class="card">
+    <div class="card-head">
+      <div>
+        <h2 class="card-title">By category</h2>
+        <p class="card-sub">All categories, whatever the filter</p>
+      </div>
+    </div>
+    <app-bar-list [rows]="categoryBars()" [format]="metricFormat()" emptyText="No items sold in this period." />
+  </article>
+  <article class="card">
+    <div class="card-head">
+      <div>
+        <h2 class="card-title">By metal and purity</h2>
+        <p class="card-sub">{{ category() || 'All categories' }}</p>
+      </div>
+    </div>
+    <app-bar-list [rows]="purityBars()" [format]="metricFormat()" emptyText="No items sold in this period." />
+  </article>
+</section>
+
+<section class="card card-flush section-gap">
+  <div class="card-head">
+    <div>
+      <h2 class="card-title">Best sellers</h2>
+      <p class="card-sub">Top {{ top().length }} of {{ ranked().length }} designs{{ category() ? ' in ' + category() : '' }}</p>
+    </div>
+    <button type="button" class="btn btn-secondary btn-sm" (click)="exportCsv()">
+      <app-icon name="download" [size]="15" /> Export all
+    </button>
+  </div>
+  @if (top().length) {
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th scope="col" class="rank">#</th>
+            <th scope="col">Item</th>
+            <th scope="col">Category</th>
+            <th scope="col" class="num">Pieces</th>
+            <th scope="col" class="num">Bills</th>
+            <th scope="col" class="num">Net weight</th>
+            <th scope="col" class="num">Sales value</th>
+            <th scope="col" class="num">Making earned</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (item of top(); track item.key; let i = $index) {
+            <tr>
+              <td class="rank">{{ i + 1 }}</td>
+              <td>
+                <div class="cell-stack">
+                  <span class="strong">{{ item.description }}</span>
+                  <small>{{ item.metal }} {{ item.purity }}</small>
+                </div>
+              </td>
+              <td class="muted">{{ item.category }}</td>
+              <td class="num">{{ item.pieces }}</td>
+              <td class="num">{{ item.bills }}</td>
+              <td class="num">{{ item.grams | grams: 2 }}</td>
+              <td class="num strong">{{ item.revenue | inr }}</td>
+              <td class="num">
+                <div class="cell-stack">
+                  <span>{{ item.making | inr }}</span>
+                  <small>{{ percent(makingRate(item.making, item.metalValue), 1) }}</small>
+                </div>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  } @else {
+    <div class="empty-state">
+      <app-icon name="gem" [size]="32" />
+      <strong>No items sold in this period</strong>
+      Try a longer period or another category.
+    </div>
+  }
+</section>

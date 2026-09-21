@@ -3,22 +3,28 @@
   @let s = status();
   @let c = customer();
 
-  <a class="back-link no-print" routerLink="/bills"><app-icon name="arrowLeft" [size]="16" /> Bills</a>
+  <a class="back-link no-print" [routerLink]="auth.isOwner() ? '/bills' : '/counter'">
+    <app-icon name="arrowLeft" [size]="16" /> {{ auth.isOwner() ? 'Bills' : 'Counter' }}
+  </a>
 
   <header class="page-head no-print">
     <div>
       <h1 class="page-title">{{ b.billNo }}</h1>
       <p class="page-sub">
         {{ b.date | day }} ·
-        @if (c) {
+        @if (c && auth.isOwner()) {
           <a [routerLink]="['/customers', c.id]">{{ c.name }}</a>
+        } @else if (c) {
+          {{ c.name }}
         }
       </p>
     </div>
     <div class="page-actions">
-      <button type="button" class="btn btn-ghost btn-danger" (click)="remove()">
-        <app-icon name="trash" [size]="16" /> Delete
-      </button>
+      @if (auth.isOwner()) {
+        <button type="button" class="btn btn-ghost btn-danger" (click)="remove()">
+          <app-icon name="trash" [size]="16" /> Delete
+        </button>
+      }
       <button type="button" class="btn btn-secondary" (click)="printInvoice()">
         <app-icon name="printer" [size]="16" /> Print
       </button>
@@ -169,7 +175,7 @@
         } @else {
           <p class="muted-line">No payment recorded against this bill yet.</p>
         }
-        @if (adjustedFromAccount() > 0) {
+        @if (adjustedFromAccount() > 0 && auth.isOwner()) {
           <p class="muted-line">{{ adjustedFromAccount() | inr }} adjusted from other payments on the customer's account.</p>
         }
         <dl class="inv-totals settle">
@@ -199,7 +205,7 @@
           <div><dt>Days since billing</dt><dd>{{ s?.daysOpen ?? 0 }}</dd></div>
         </dl>
       </section>
-      @if (c) {
+      @if (c && auth.isOwner()) {
         <section class="card">
           <h2 class="card-title">Customer</h2>
           <p class="side-name"><a [routerLink]="['/customers', c.id]">{{ c.name }}</a></p>
@@ -213,7 +219,11 @@
   <div class="card empty-state">
     <app-icon name="receipt" [size]="36" />
     <strong>Bill not found</strong>
-    It may have been deleted.
-    <a class="btn btn-secondary btn-sm" routerLink="/bills">Back to bills</a>
+    @if (auth.isOwner()) {
+      It may have been deleted.
+    } @else {
+      Counter staff can open bills they made today or yesterday. Ask an owner for older bills.
+    }
+    <a class="btn btn-secondary btn-sm" [routerLink]="auth.isOwner() ? '/bills' : '/counter'">Go back</a>
   </div>
 }

@@ -1,0 +1,131 @@
+@let k = kpis();
+@let m = monthly();
+@let a = aged();
+
+<section class="kpi-grid five" aria-label="Collection figures">
+  <div class="kpi">
+    <span class="kpi-label"><span class="kpi-key" style="background: var(--series-credit)"></span>Collected</span>
+    <strong class="kpi-value">{{ k.collected | inr }}</strong>
+    <span class="kpi-foot">{{ k.receipts }} receipts · {{ k.oldGold | grams: 1 }} old gold</span>
+  </div>
+  <div class="kpi">
+    <span class="kpi-label">Collected per ₹100 billed</span>
+    <strong class="kpi-value">{{ percent(k.ratio) }}</strong>
+    <span class="kpi-foot">on {{ k.billed | inr }} billed</span>
+  </div>
+  <div class="kpi" [class.alert]="k.outstanding > 0">
+    <span class="kpi-label">Outstanding now</span>
+    <strong class="kpi-value">{{ k.outstanding | inr }}</strong>
+    <span class="kpi-foot">across all periods</span>
+  </div>
+  <div class="kpi">
+    <span class="kpi-label">Days of sales outstanding</span>
+    <strong class="kpi-value">{{ k.dso.toFixed(0) }} days</strong>
+    <span class="kpi-foot">dues ÷ average daily billing (90 days)</span>
+  </div>
+  <div class="kpi">
+    <span class="kpi-label">Time to settle a bill</span>
+    <strong class="kpi-value">{{ k.avgSettle.toFixed(0) }} days</strong>
+    <span class="kpi-foot">{{ percent(k.sameDayShare) }} paid in full on the day</span>
+  </div>
+</section>
+
+<section class="split section-gap">
+  <article class="card">
+    <div class="card-head">
+      <div>
+        <h2 class="card-title">Billed vs collected</h2>
+        <p class="card-sub">Debit raised against credit received each month</p>
+      </div>
+    </div>
+    <app-column-chart
+      caption="Billed versus collected by month"
+      [labels]="m.labels.short"
+      [fullLabels]="m.labels.full"
+      [series]="m.flow"
+      [height]="240"
+    />
+  </article>
+  <article class="card">
+    <div class="card-head">
+      <div>
+        <h2 class="card-title">Collection ratio</h2>
+        <p class="card-sub">Rupees collected for every ₹100 billed. Above 100 means old dues were cleared.</p>
+      </div>
+    </div>
+    <app-column-chart
+      caption="Collection ratio by month"
+      [labels]="m.labels.short"
+      [fullLabels]="m.labels.full"
+      [series]="m.ratio"
+      [format]="pct"
+      [axisFormat]="pct"
+      [showTotal]="false"
+      [height]="240"
+    />
+  </article>
+</section>
+
+<section class="split-wide section-gap">
+  <article class="card card-flush">
+    <div class="card-head">
+      <div>
+        <h2 class="card-title">Aged receivables</h2>
+        <p class="card-sub">Who owes what, by how long it has been unpaid · as of today</p>
+      </div>
+      <button type="button" class="btn btn-secondary btn-sm" (click)="exportAged()">
+        <app-icon name="download" [size]="15" /> Export
+      </button>
+    </div>
+    @if (a.rows.length) {
+      <div class="table-wrap">
+        <table class="data-table compact">
+          <thead>
+            <tr>
+              <th scope="col">Customer</th>
+              @for (b of buckets; track b.key) {
+                <th scope="col" class="num">{{ b.label }}</th>
+              }
+              <th scope="col" class="num">Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (row of a.rows; track row.customer.id) {
+              <tr>
+                <th scope="row"><a class="row-link" [routerLink]="['/customers', row.customer.id]">{{ row.customer.name }}</a></th>
+                @for (amount of row.amounts; track $index; let i = $index) {
+                  <td class="num" [class.text-danger]="i === 3 && amount > 0" [class.muted]="!amount">{{ amount ? (amount | inr) : '—' }}</td>
+                }
+                <td class="num strong">{{ row.total | inr }}</td>
+              </tr>
+            }
+          </tbody>
+          <tfoot>
+            <tr>
+              <th scope="row">{{ a.rows.length }} customers</th>
+              @for (t of a.totals; track $index) {
+                <td class="num">{{ t | inr }}</td>
+              }
+              <td class="num">{{ a.grand | inr }}</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    } @else {
+      <div class="empty-state">
+        <app-icon name="check" [size]="32" />
+        <strong>Nothing outstanding</strong>
+        Every bill is settled.
+      </div>
+    }
+  </article>
+  <article class="card">
+    <div class="card-head">
+      <div>
+        <h2 class="card-title">How customers paid</h2>
+        <p class="card-sub">{{ range().label }}</p>
+      </div>
+    </div>
+    <app-bar-list [rows]="modes()" [format]="inr" color="var(--series-credit)" emptyText="No payments in this period." />
+  </article>
+</section>

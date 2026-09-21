@@ -9,6 +9,7 @@ import {
 import { Router, RouterLink } from '@angular/router';
 import { ShopStore } from '../../core/store';
 import { UiService } from '../../core/ui.service';
+import { AuthService } from '../../core/auth.service';
 import { hsnFor, itemAmount, itemMaking, metalOf } from '../../core/calc';
 import { amountInWords } from '../../core/format';
 import { Icon } from '../../shared/icon';
@@ -36,6 +37,7 @@ export class BillDetailPage {
   protected readonly store = inject(ShopStore);
   private readonly ui = inject(UiService);
   private readonly router = inject(Router);
+  protected readonly auth = inject(AuthService);
 
   readonly id = input.required<string>();
   /** `?print=1` after "Save & print". */
@@ -91,7 +93,7 @@ export class BillDetailPage {
     if (bill) this.ui.openPayment({ customerId: bill.customerId, billId: bill.id });
   }
 
-  protected remove(): void {
+  protected async remove(): Promise<void> {
     const bill = this.bill();
     if (!bill) return;
     const linked = this.payments().length;
@@ -100,8 +102,12 @@ export class BillDetailPage {
       (linked ? ` ${linked} payment${linked === 1 ? '' : 's'} recorded against it will also be deleted.` : '') +
       ' This cannot be undone.';
     if (!confirm(message)) return;
-    this.store.deleteBill(bill.id);
-    this.ui.toast(`Bill ${bill.billNo} deleted`, 'info');
-    void this.router.navigate(['/bills']);
+    try {
+      await this.store.deleteBill(bill.id);
+      this.ui.toast(`Bill ${bill.billNo} deleted`, 'info');
+      void this.router.navigate(['/bills']);
+    } catch (error) {
+      this.ui.toast((error as Error).message, 'error');
+    }
   }
 }

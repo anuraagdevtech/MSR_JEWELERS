@@ -3,6 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { ShopStore, PaymentInput } from '../../core/store';
 import { UiService } from '../../core/ui.service';
+import { AuthService } from '../../core/auth.service';
 import { BillItem, ItemCategory, MakingType, PaymentMode, Purity } from '../../core/models';
 import {
   CATEGORIES,
@@ -37,9 +38,10 @@ let draftCounter = 0;
   styleUrl: './bill-form.scss',
 })
 export class BillFormPage {
-  private readonly store = inject(ShopStore);
+  protected readonly store = inject(ShopStore);
   private readonly ui = inject(UiService);
   private readonly router = inject(Router);
+  protected readonly auth = inject(AuthService);
 
   /** `?customer=<id>` when starting a bill from a customer's page. */
   readonly customer = input<string>();
@@ -68,6 +70,7 @@ export class BillFormPage {
   protected readonly payMode = signal<PaymentMode>('UPI');
   protected readonly payReference = signal('');
   protected readonly submitted = signal(false);
+  protected readonly busy = signal(false);
 
   protected readonly customerRecord = computed(() => this.store.customerById().get(this.customerId()));
   protected readonly previousBalance = computed(
@@ -177,8 +180,9 @@ export class BillFormPage {
     return Number(item.rate) !== this.settings().rates[item.purity];
   }
 
-  protected save(print = false): void {
+  protected async save(print = false): Promise<void> {
     this.submitted.set(true);
+    if (this.busy()) return;
     if (this.errors().length) {
       window.scrollTo({ top: 0, behavior: 'smooth' });
       return;
@@ -219,22 +223,29 @@ export class BillFormPage {
       });
     }
 
-    const bill = this.store.createBill(
-      {
-        customerId: this.customerId(),
-        date: this.date(),
-        items,
-        discount: this.totals().discount,
-        gstPercent: this.settings().gstPercent,
-        notes: this.notes().trim() || undefined,
-      },
-      payments,
-    );
-    const due = this.toKhata();
-    this.ui.toast(
-      `Bill ${bill.billNo} saved · ${formatINR(this.totals().total)}${due > 0 ? ` · ${formatINR(due)} to khata` : ''}`,
-    );
-    void this.router.navigate(['/bills', bill.id], { queryParams: print ? { print: 1 } : {} });
+    this.busy.set(true);
+    try {
+      const bill = await this.store.createBill(
+        {
+          customerId: this.customerId(),
+          date: this.date(),
+          items,
+          discount: this.totals().discount,
+          gstPercent: this.settings().gstPercent,
+          notes: this.notes().trim() || undefined,
+        },
+        payments,
+      );
+      const due = this.toKhata();
+      this.ui.toast(
+        `Bill ${bill.billNo} saved · ${formatINR(this.totals().total)}${due > 0 ? ` · ${formatINR(due)} to khata` : ''}`,
+      );
+      void this.router.navigate(['/bills', bill.id], { queryParams: print ? { print: 1 } : {} });
+    } catch (error) {
+      this.ui.toast((error as Error).message, 'error');
+    } finally {
+      this.busy.set(false);
+    }
   }
 
   protected newCustomer(typed: string): void {
