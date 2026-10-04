@@ -73,6 +73,8 @@
   <div><span>Metal sold (net)</span><strong>{{ f.weight | grams: 1 }}</strong></div>
   <div><span>Old gold taken in</span><strong>{{ f.oldGoldGrams | grams: 1 }}</strong></div>
   <div><span>New customers</span><strong>{{ f.newCustomers }}</strong></div>
+  <div><span>Register gold</span><strong>{{ register().gold | grams: 1 }}</strong></div>
+  <div><span>Register cash</span><strong>{{ register().cash | balance }}</strong></div>
 </section>
 
 <section class="split-wide section-gap">

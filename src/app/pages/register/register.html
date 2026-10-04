@@ -1,0 +1,543 @@
+@let pos = position();
+@let t = totals();
+
+<header class="page-head">
+  <div>
+    <p class="eyebrow">Counter book</p>
+    <h1 class="page-title">Register</h1>
+    <p class="page-sub">
+      The shop’s register, one line per slip: gold in grams and cash handed over or received,
+      with each customer’s running balance. A debit is what went out to the customer, a credit
+      is what came back in. This book stands on its own — it does not touch GST bills or receipts.
+    </p>
+  </div>
+  <div class="page-actions no-print">
+    <button type="button" class="btn btn-secondary" (click)="print()">
+      <app-icon name="printer" [size]="16" /> Print
+    </button>
+    <button type="button" class="btn btn-secondary" (click)="exportCsv()">
+      <app-icon name="download" [size]="16" /> Export CSV
+    </button>
+    <button type="button" class="btn btn-primary" (click)="openEntry()">
+      <app-icon name="plus" [size]="16" /> New entry
+    </button>
+  </div>
+</header>
+
+<section class="kpi-grid" aria-label="What the register adds up to">
+  <div class="kpi">
+    <span class="kpi-label"><app-icon name="scale" [size]="14" /> Gold position</span>
+    <strong class="kpi-value">{{ goldBalance(pos.gold) }}</strong>
+    <span class="kpi-foot">{{ goldMeaning(pos.gold) }}</span>
+  </div>
+  <div class="kpi">
+    <span class="kpi-label"><app-icon name="wallet" [size]="14" /> Cash position</span>
+    <strong class="kpi-value">{{ pos.cash | balance }}</strong>
+    <span class="kpi-foot">{{ cashMeaning(pos.cash) }}</span>
+  </div>
+  <div class="kpi">
+    <span class="kpi-label">Accounts in the register</span>
+    <strong class="kpi-value">{{ pos.accounts }}</strong>
+    <span class="kpi-foot">
+      {{ pos.openGold }} with gold outstanding · {{ pos.openCash }} with cash outstanding
+    </span>
+  </div>
+  <div class="kpi">
+    <span class="kpi-label">Lines in this view</span>
+    <strong class="kpi-value">{{ t.lines }}</strong>
+    <span class="kpi-foot">
+      {{ t.customers }} {{ t.customers === 1 ? 'customer' : 'customers' }}
+      @if (t.lastDate) {
+        · last written {{ t.lastDate | day: 'short' }}
+      }
+    </span>
+  </div>
+</section>
+
+<div class="filters no-print">
+  <div class="field">
+    <span class="filter-label" id="register-view-label">Show</span>
+    <div class="segmented" role="radiogroup" aria-labelledby="register-view-label">
+      <button
+        type="button"
+        role="radio"
+        [attr.aria-checked]="view() === 'entries'"
+        [class.on]="view() === 'entries'"
+        (click)="view.set('entries')"
+      >
+        Entries
+      </button>
+      <button
+        type="button"
+        role="radio"
+        [attr.aria-checked]="view() === 'balances'"
+        [class.on]="view() === 'balances'"
+        (click)="view.set('balances')"
+      >
+        Balances
+      </button>
+    </div>
+  </div>
+
+  @if (view() === 'entries') {
+    <div class="field">
+      <label for="register-period">Period</label>
+      <select
+        id="register-period"
+        class="input"
+        (change)="setPreset($any($event.target).value)"
+      >
+        <option value="month" [selected]="preset() === 'month'">This month</option>
+        <option value="last-month" [selected]="preset() === 'last-month'">Last month</option>
+        <option value="3m" [selected]="preset() === '3m'">Last 3 months</option>
+        <option value="6m" [selected]="preset() === '6m'">Last 6 months</option>
+        <option value="fy" [selected]="preset() === 'fy'">This financial year</option>
+        <option value="all" [selected]="preset() === 'all'">Whole book</option>
+        <option value="custom" [selected]="preset() === 'custom'">Custom dates</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="register-from">From</label>
+      <input
+        id="register-from"
+        class="input"
+        type="date"
+        [value]="from()"
+        (change)="setDate('from', $any($event.target).value)"
+      />
+    </div>
+    <div class="field">
+      <label for="register-to">To</label>
+      <input
+        id="register-to"
+        class="input"
+        type="date"
+        [value]="to()"
+        (change)="setDate('to', $any($event.target).value)"
+      />
+    </div>
+  } @else {
+    <div class="field">
+      <span class="filter-label" id="register-open-label">Accounts</span>
+      <div class="segmented" role="radiogroup" aria-labelledby="register-open-label">
+        <button
+          type="button"
+          role="radio"
+          [attr.aria-checked]="!openOnly()"
+          [class.on]="!openOnly()"
+          (click)="openOnly.set(false)"
+        >
+          All
+        </button>
+        <button
+          type="button"
+          role="radio"
+          [attr.aria-checked]="openOnly()"
+          [class.on]="openOnly()"
+          (click)="openOnly.set(true)"
+        >
+          Outstanding only
+        </button>
+      </div>
+    </div>
+  }
+
+  <div class="field grow">
+    <label for="register-search">Search</label>
+    <div class="search-field">
+      <app-icon name="search" [size]="16" />
+      <input
+        id="register-search"
+        class="input"
+        type="search"
+        placeholder="Customer, phone, slip no., c/o or note"
+        [value]="query()"
+        (input)="search($any($event.target).value)"
+      />
+    </div>
+  </div>
+</div>
+
+@if (view() === 'entries') {
+  <div class="mini-stats section-gap">
+    <div>
+      <span>Gold credit (in)</span>
+      <strong>{{ t.goldCredit | grams }}</strong>
+    </div>
+    <div>
+      <span>Gold debit (out)</span>
+      <strong>{{ t.goldDebit | grams }}</strong>
+    </div>
+    <div>
+      <span>Cash credit (in)</span>
+      <strong>{{ t.cashCredit | inr }}</strong>
+    </div>
+    <div>
+      <span>Cash debit (out)</span>
+      <strong>{{ t.cashDebit | inr }}</strong>
+    </div>
+  </div>
+
+  <section class="card card-flush section-gap">
+    @if (visible().length) {
+      <div class="table-wrap">
+        <table class="data-table register-table">
+          <thead>
+            <tr>
+              <th scope="col" class="num sno">S.No</th>
+              <th scope="col">Customer name</th>
+              <th scope="col">Ph. No.</th>
+              <th scope="col">Address</th>
+              <th scope="col">c/o name &amp; Ph. No.</th>
+              <th scope="col">Slip no. &amp; date</th>
+              <th scope="col" class="num gold">Gold credit</th>
+              <th scope="col" class="num gold">Gold debit</th>
+              <th scope="col" class="num cash">Cash credit</th>
+              <th scope="col" class="num cash">Cash debit</th>
+              <th scope="col" class="num">Balance after</th>
+              <th scope="col">Notes</th>
+              <th scope="col" class="no-print">
+                <span class="visually-hidden">Edit</span>
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (row of visible(); track row.id) {
+              <tr>
+                <th scope="row" class="num sno">{{ row.serial }}</th>
+                <td>
+                  <a class="row-link" [routerLink]="['/customers', row.customerId]">
+                    {{ row.customerName }}
+                  </a>
+                </td>
+                <td class="nowrap">{{ row.phone | phone }}</td>
+                <td class="address" [title]="row.address">{{ row.address || '—' }}</td>
+                <td>
+                  @if (row.careOfName || row.careOfPhone) {
+                    <div class="cell-stack">
+                      <span>{{ row.careOfName || '—' }}</span>
+                      @if (row.careOfPhone) {
+                        <small>{{ row.careOfPhone | phone }}</small>
+                      }
+                    </div>
+                  } @else {
+                    <span class="muted">—</span>
+                  }
+                </td>
+                <td>
+                  <div class="cell-stack">
+                    <span class="strong">{{ row.slipNo || '—' }}</span>
+                    <small>{{ row.date | day: 'short' }}</small>
+                  </div>
+                </td>
+                <td class="num gold">{{ row.goldCredit ? (row.goldCredit | grams) : '' }}</td>
+                <td class="num gold">{{ row.goldDebit ? (row.goldDebit | grams) : '' }}</td>
+                <td class="num cash">{{ row.cashCredit ? (row.cashCredit | inr) : '' }}</td>
+                <td class="num cash">{{ row.cashDebit ? (row.cashDebit | inr) : '' }}</td>
+                <td class="num">
+                  <div class="cell-stack balance-cell">
+                    <span [class.due]="row.goldBalance > 0">{{ goldBalance(row.goldBalance) }}</span>
+                    <small [class.due]="row.cashBalance > 0">{{ row.cashBalance | balance }}</small>
+                  </div>
+                </td>
+                <td class="notes" [title]="row.notes">{{ row.notes || '' }}</td>
+                <td class="no-print">
+                  <button
+                    type="button"
+                    class="icon-btn sm"
+                    [attr.aria-label]="'Edit slip ' + (row.slipNo || row.serial)"
+                    title="Edit this entry"
+                    (click)="openEntry(row)"
+                  >
+                    <app-icon name="edit" [size]="15" />
+                  </button>
+                </td>
+              </tr>
+            }
+          </tbody>
+          <tfoot>
+            <tr>
+              <th scope="row" colspan="6">
+                Total of {{ t.lines }} {{ t.lines === 1 ? 'line' : 'lines' }}
+              </th>
+              <td class="num gold">{{ t.goldCredit | grams }}</td>
+              <td class="num gold">{{ t.goldDebit | grams }}</td>
+              <td class="num cash">{{ t.cashCredit | inr }}</td>
+              <td class="num cash">{{ t.cashDebit | inr }}</td>
+              <td class="num">{{ goldBalance(pos.gold) }}</td>
+              <td></td>
+              <td class="no-print"></td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+      @if (hidden()) {
+        <div class="table-foot no-print">
+          <span>{{ hidden() }} more lines in this period</span>
+          <button type="button" class="btn btn-secondary btn-sm" (click)="limit.set(limit() + 100)">
+            Show 100 more
+          </button>
+        </div>
+      }
+    } @else {
+      <div class="empty-state">
+        <app-icon name="book" [size]="36" />
+        <strong>Nothing written in the register for this view</strong>
+        Try a longer period or clear the search, or write the first entry.
+        <button type="button" class="btn btn-primary btn-sm no-print" (click)="openEntry()">
+          <app-icon name="plus" [size]="15" /> New entry
+        </button>
+      </div>
+    }
+  </section>
+} @else {
+  <section class="card card-flush section-gap">
+    @if (balances().length) {
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th scope="col">Customer name</th>
+              <th scope="col">Ph. No.</th>
+              <th scope="col">Address</th>
+              <th scope="col">c/o name</th>
+              <th scope="col" class="num gold">Gold in</th>
+              <th scope="col" class="num gold">Gold out</th>
+              <th scope="col" class="num">Gold balance</th>
+              <th scope="col" class="num cash">Cash in</th>
+              <th scope="col" class="num cash">Cash out</th>
+              <th scope="col" class="num">Cash balance</th>
+              <th scope="col" class="num">Lines</th>
+              <th scope="col">Last entry</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (row of balances(); track row.customerId) {
+              <tr>
+                <th scope="row">
+                  <a class="row-link" [routerLink]="['/customers', row.customerId]">{{ row.name }}</a>
+                </th>
+                <td class="nowrap">{{ row.phone | phone }}</td>
+                <td class="address" [title]="row.address">{{ row.address || '—' }}</td>
+                <td>{{ row.careOf || '—' }}</td>
+                <td class="num gold">{{ row.goldCredit ? (row.goldCredit | grams) : '' }}</td>
+                <td class="num gold">{{ row.goldDebit ? (row.goldDebit | grams) : '' }}</td>
+                <td class="num strong" [class.due]="row.goldBalance > 0">
+                  {{ goldBalance(row.goldBalance) }}
+                </td>
+                <td class="num cash">{{ row.cashCredit ? (row.cashCredit | inr) : '' }}</td>
+                <td class="num cash">{{ row.cashDebit ? (row.cashDebit | inr) : '' }}</td>
+                <td class="num strong" [class.due]="row.cashBalance > 0">
+                  {{ row.cashBalance | balance }}
+                </td>
+                <td class="num">{{ row.entries }}</td>
+                <td class="nowrap">{{ row.lastDate | day: 'short' }}</td>
+              </tr>
+            }
+          </tbody>
+          <tfoot>
+            <tr>
+              <th scope="row" colspan="6">
+                {{ pos.accounts }} {{ pos.accounts === 1 ? 'account' : 'accounts' }}
+              </th>
+              <td class="num">{{ goldBalance(pos.gold) }}</td>
+              <td colspan="2"></td>
+              <td class="num">{{ pos.cash | balance }}</td>
+              <td colspan="2"></td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    } @else {
+      <div class="empty-state">
+        <app-icon name="book" [size]="36" />
+        <strong>No register accounts yet</strong>
+        Balances appear here as soon as the first slip is written in.
+      </div>
+    }
+  </section>
+}
+
+<dialog #dialog class="modal" aria-labelledby="entry-title" (click)="onBackdrop($event)">
+  <form class="modal-card" (ngSubmit)="save()" novalidate>
+    <header class="modal-head">
+      <div>
+        <p class="eyebrow">{{ editingId() ? 'Edit register entry' : 'New register entry' }}</p>
+        <h2 id="entry-title">
+          {{ editingId() ? 'Slip ' + (slipNo() || '—') : 'Write into the register' }}
+        </h2>
+      </div>
+      <button type="button" class="icon-btn" (click)="closeEntry()" aria-label="Close">
+        <app-icon name="close" />
+      </button>
+    </header>
+
+    <div class="modal-body">
+      <div class="field">
+        <label for="entry-customer">Customer</label>
+        <app-customer-picker
+          inputId="entry-customer"
+          [value]="customerId()"
+          (valueChange)="customerId.set($event); onCustomerChosen($event)"
+          (create)="createCustomer($event)"
+        />
+      </div>
+
+      <div class="grid-2">
+        <div class="field">
+          <label for="entry-slip">Slip no.</label>
+          <input
+            id="entry-slip"
+            class="input"
+            name="slipNo"
+            autocomplete="off"
+            placeholder="As written on the slip"
+            [(ngModel)]="slipNo"
+          />
+        </div>
+        <div class="field">
+          <label for="entry-date">Date</label>
+          <input id="entry-date" class="input" name="date" type="date" [(ngModel)]="date" />
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="field">
+          <label for="entry-careof">c/o name <span class="optional">optional</span></label>
+          <input
+            id="entry-careof"
+            class="input"
+            name="careOfName"
+            autocomplete="off"
+            placeholder="Who to call instead"
+            [(ngModel)]="careOfName"
+          />
+        </div>
+        <div class="field">
+          <label for="entry-careof-phone">c/o Ph. No. <span class="optional">optional</span></label>
+          <input
+            id="entry-careof-phone"
+            class="input"
+            name="careOfPhone"
+            type="tel"
+            inputmode="tel"
+            [(ngModel)]="careOfPhone"
+          />
+        </div>
+      </div>
+
+      <fieldset class="columns">
+        <legend>Gold (grams)</legend>
+        <div class="grid-2">
+          <div class="field">
+            <label for="entry-gold-credit">Gold credit — received from the customer</label>
+            <input
+              id="entry-gold-credit"
+              class="input"
+              name="goldCredit"
+              type="number"
+              inputmode="decimal"
+              min="0"
+              step="0.001"
+              placeholder="0.000"
+              [(ngModel)]="goldCredit"
+            />
+          </div>
+          <div class="field">
+            <label for="entry-gold-debit">Gold debit — handed to the customer</label>
+            <input
+              id="entry-gold-debit"
+              class="input"
+              name="goldDebit"
+              type="number"
+              inputmode="decimal"
+              min="0"
+              step="0.001"
+              placeholder="0.000"
+              [(ngModel)]="goldDebit"
+            />
+          </div>
+        </div>
+      </fieldset>
+
+      <fieldset class="columns">
+        <legend>Cash (₹)</legend>
+        <div class="grid-2">
+          <div class="field">
+            <label for="entry-cash-credit">Cash credit — received from the customer</label>
+            <input
+              id="entry-cash-credit"
+              class="input"
+              name="cashCredit"
+              type="number"
+              inputmode="numeric"
+              min="0"
+              step="1"
+              placeholder="0"
+              [(ngModel)]="cashCredit"
+            />
+          </div>
+          <div class="field">
+            <label for="entry-cash-debit">Cash debit — handed to the customer</label>
+            <input
+              id="entry-cash-debit"
+              class="input"
+              name="cashDebit"
+              type="number"
+              inputmode="numeric"
+              min="0"
+              step="1"
+              placeholder="0"
+              [(ngModel)]="cashDebit"
+            />
+          </div>
+        </div>
+      </fieldset>
+
+      <div class="field">
+        <label for="entry-notes">Notes <span class="optional">optional</span></label>
+        <textarea
+          id="entry-notes"
+          class="input"
+          rows="2"
+          name="notes"
+          placeholder="What the slip is for"
+          [(ngModel)]="notes"
+        ></textarea>
+      </div>
+
+      @if (preview(); as after) {
+        <p class="notice notice-info">
+          <app-icon name="info" [size]="16" />
+          <span>
+            After this entry {{ after.name }} stands at
+            <strong>{{ goldBalance(after.gold) }}</strong> and
+            <strong>{{ after.cash | balance }}</strong> in the register.
+            <small>Dr = owed to the shop, Cr = held for the customer.</small>
+          </span>
+        </p>
+      }
+
+      @if (submitted() && errors().length) {
+        <ul class="form-errors" role="alert">
+          @for (error of errors(); track error) {
+            <li>{{ error }}</li>
+          }
+        </ul>
+      }
+    </div>
+
+    <footer class="modal-foot">
+      @if (editingId()) {
+        <button type="button" class="btn btn-ghost btn-danger me-auto" (click)="remove()">
+          <app-icon name="trash" [size]="16" /> Delete
+        </button>
+      }
+      <button type="button" class="btn btn-ghost" (click)="closeEntry()">Cancel</button>
+      <button type="submit" class="btn btn-primary" [disabled]="busy()">
+        <app-icon name="check" [size]="16" />
+        {{ busy() ? 'Saving…' : editingId() ? 'Save changes' : 'Add to register' }}
+      </button>
+    </footer>
+  </form>
+</dialog>

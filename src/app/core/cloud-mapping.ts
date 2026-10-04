@@ -1,4 +1,12 @@
-import { Bill, BillItem, Customer, OldGoldDetail, Payment, PaymentMode } from './models';
+import {
+  Bill,
+  BillItem,
+  Customer,
+  OldGoldDetail,
+  Payment,
+  PaymentMode,
+  RegisterEntry,
+} from './models';
 import { toISODate } from './dates';
 
 // Database rows use snake_case columns and real timestamps; the app works with the camelCase
@@ -46,6 +54,22 @@ export interface PaymentRow {
   mode: PaymentMode;
   reference: string | null;
   old_gold: OldGoldDetail | null;
+  notes: string | null;
+  created_at: string;
+  created_by?: string | null;
+}
+
+export interface RegisterEntryRow {
+  id: string;
+  entry_date: string;
+  slip_no: string;
+  customer_id: string;
+  care_of_name: string | null;
+  care_of_phone: string | null;
+  gold_credit: number | string;
+  gold_debit: number | string;
+  cash_credit: number | string;
+  cash_debit: number | string;
   notes: string | null;
   created_at: string;
   created_by?: string | null;
@@ -154,6 +178,41 @@ export function paymentToRow(payment: Payment, userId: string): PaymentRow {
     old_gold: payment.oldGold ?? null,
     notes: payment.notes ?? null,
     created_at: toInstant(payment.createdAt),
+    created_by: userId,
+  };
+}
+
+export function registerEntryFromRow(row: RegisterEntryRow): RegisterEntry {
+  return {
+    id: row.id,
+    date: row.entry_date,
+    slipNo: row.slip_no ?? '',
+    customerId: row.customer_id,
+    careOfName: opt(row.care_of_name),
+    careOfPhone: opt(row.care_of_phone),
+    goldCredit: Number(row.gold_credit) || 0,
+    goldDebit: Number(row.gold_debit) || 0,
+    cashCredit: Number(row.cash_credit) || 0,
+    cashDebit: Number(row.cash_debit) || 0,
+    notes: opt(row.notes),
+    createdAt: toLocalStamp(row.created_at),
+  };
+}
+
+export function registerEntryToRow(entry: RegisterEntry, userId: string): RegisterEntryRow {
+  return {
+    id: entry.id,
+    entry_date: entry.date,
+    slip_no: entry.slipNo,
+    customer_id: entry.customerId,
+    care_of_name: entry.careOfName ?? null,
+    care_of_phone: entry.careOfPhone ?? null,
+    gold_credit: entry.goldCredit,
+    gold_debit: entry.goldDebit,
+    cash_credit: entry.cashCredit,
+    cash_debit: entry.cashDebit,
+    notes: entry.notes ?? null,
+    created_at: toInstant(entry.createdAt),
     created_by: userId,
   };
 }

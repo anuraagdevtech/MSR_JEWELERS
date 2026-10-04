@@ -18,6 +18,14 @@
           <a [href]="'tel:' + c.phone.replace(' ', '')"><app-icon name="phone" [size]="14" />{{ c.phone | phone }}</a>
           <span><app-icon name="mapPin" [size]="14" />{{ c.city }}</span>
           <span>Customer since {{ c.createdAt | day }}</span>
+          @if (registerSummary(); as reg) {
+            @if (reg.goldBalance || reg.cashBalance) {
+              <a class="chip chip-warning" routerLink="/register">
+                <app-icon name="book" [size]="13" />
+                Register {{ goldBalance(reg.goldBalance) }} · {{ reg.cashBalance | balance }}
+              </a>
+            }
+          }
         </p>
         @if (c.notes) {
           <p class="profile-notes">{{ c.notes }}</p>
@@ -102,6 +110,9 @@
       </button>
       <button type="button" role="tab" [attr.aria-selected]="tab() === 'payments'" [class.on]="tab() === 'payments'" (click)="tab.set('payments')">
         Payments <span class="count">{{ payments().length }}</span>
+      </button>
+      <button type="button" role="tab" [attr.aria-selected]="tab() === 'register'" [class.on]="tab() === 'register'" (click)="tab.set('register')">
+        Register <span class="count">{{ registerLines().length }}</span>
       </button>
     </div>
 
@@ -300,6 +311,103 @@
             <app-icon name="wallet" [size]="32" />
             <strong>No payments yet</strong>
             <button type="button" class="btn btn-primary btn-sm" (click)="collect()">Record a payment</button>
+          </div>
+        }
+      }
+
+      @case ('register') {
+        @if (registerLines().length) {
+          @let reg = registerSummary()!;
+          <div class="register-strip no-print">
+            <div class="mini-stats">
+              <div>
+                <span>Gold received</span>
+                <strong>{{ reg.goldCredit | grams }}</strong>
+              </div>
+              <div>
+                <span>Gold handed over</span>
+                <strong>{{ reg.goldDebit | grams }}</strong>
+              </div>
+              <div>
+                <span>Gold balance</span>
+                <strong [class.text-danger]="reg.goldBalance > 0">{{ goldBalance(reg.goldBalance) }}</strong>
+              </div>
+              <div>
+                <span>Cash balance</span>
+                <strong [class.text-danger]="reg.cashBalance > 0">{{ reg.cashBalance | balance }}</strong>
+              </div>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th scope="col" class="num">S.No</th>
+                  <th scope="col">Slip no. &amp; date</th>
+                  <th scope="col">c/o name &amp; Ph. No.</th>
+                  <th scope="col" class="num">Gold credit</th>
+                  <th scope="col" class="num">Gold debit</th>
+                  <th scope="col" class="num">Cash credit</th>
+                  <th scope="col" class="num">Cash debit</th>
+                  <th scope="col" class="num">Balance after</th>
+                  <th scope="col">Notes</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (row of registerLines(); track row.id) {
+                  <tr>
+                    <th scope="row" class="num muted">{{ row.serial }}</th>
+                    <td>
+                      <div class="cell-stack">
+                        <span class="strong">{{ row.slipNo || '—' }}</span>
+                        <small>{{ row.date | day }}</small>
+                      </div>
+                    </td>
+                    <td>
+                      @if (row.careOfName || row.careOfPhone) {
+                        <div class="cell-stack">
+                          <span>{{ row.careOfName || '—' }}</span>
+                          @if (row.careOfPhone) {
+                            <small>{{ row.careOfPhone | phone }}</small>
+                          }
+                        </div>
+                      } @else {
+                        <span class="muted">—</span>
+                      }
+                    </td>
+                    <td class="num">{{ row.goldCredit ? (row.goldCredit | grams) : '' }}</td>
+                    <td class="num">{{ row.goldDebit ? (row.goldDebit | grams) : '' }}</td>
+                    <td class="num">{{ row.cashCredit ? (row.cashCredit | inr) : '' }}</td>
+                    <td class="num">{{ row.cashDebit ? (row.cashDebit | inr) : '' }}</td>
+                    <td class="num">
+                      <div class="cell-stack balance-cell">
+                        <span class="strong">{{ goldBalance(row.goldBalance) }}</span>
+                        <small>{{ row.cashBalance | balance }}</small>
+                      </div>
+                    </td>
+                    <td class="items-cell">{{ row.notes || '' }}</td>
+                  </tr>
+                }
+              </tbody>
+              <tfoot>
+                <tr>
+                  <th scope="row" colspan="3">Totals</th>
+                  <td class="num">{{ reg.goldCredit | grams }}</td>
+                  <td class="num">{{ reg.goldDebit | grams }}</td>
+                  <td class="num">{{ reg.cashCredit | inr }}</td>
+                  <td class="num">{{ reg.cashDebit | inr }}</td>
+                  <td class="num">{{ goldBalance(reg.goldBalance) }}</td>
+                  <td></td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        } @else {
+          <div class="empty-state">
+            <app-icon name="book" [size]="32" />
+            <strong>Nothing in the register</strong>
+            Gold and cash written on slips for {{ c.name }} will appear here.
+            <a class="btn btn-secondary btn-sm no-print" routerLink="/register">Open the register</a>
           </div>
         }
       }

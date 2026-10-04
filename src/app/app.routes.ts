@@ -59,6 +59,12 @@ export const routes: Routes = [
         loadComponent: () => import('./pages/bill-detail/bill-detail').then((m) => m.BillDetailPage),
       },
       {
+        path: 'register',
+        title: 'Register · MSR Jewellers',
+        canActivate: [ownerGuard],
+        loadComponent: () => import('./pages/register/register').then((m) => m.RegisterPage),
+      },
+      {
         path: 'ledger',
         title: 'Credit & debit ledger · MSR Jewellers',
         canActivate: [ownerGuard],

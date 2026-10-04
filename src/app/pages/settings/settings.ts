@@ -56,6 +56,7 @@ export class SettingsPage {
     customers: this.store.customers().length,
     bills: this.store.bills().length,
     payments: this.store.payments().length,
+    registerEntries: this.store.registerEntries().length,
   }));
 
   protected readonly themes: { key: ThemePreference; label: string; icon: 'monitor' | 'sun' | 'moon' }[] = [

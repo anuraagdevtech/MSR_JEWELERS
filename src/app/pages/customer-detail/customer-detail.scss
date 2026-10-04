@@ -91,6 +91,26 @@
   background: var(--surface-2);
 }
 
+// The register chip keeps its warning colour inside the meta line, which inherits otherwise.
+.profile-meta a.chip {
+  color: var(--warning-text);
+  font-size: 0.75rem;
+
+  &:hover {
+    color: var(--warning-text);
+    border-color: currentColor;
+  }
+}
+
+.register-strip {
+  padding: 14px 20px 0;
+}
+
+.balance-cell {
+  justify-items: end;
+  font-variant-numeric: tabular-nums;
+}
+
 .print-head {
   margin-bottom: 12px;
 

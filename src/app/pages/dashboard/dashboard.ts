@@ -20,7 +20,7 @@ import { PaymentMode } from '../../core/models';
 import { ColumnChart, ColumnSeries } from '../../shared/charts/column-chart';
 import { BarList, BarRow } from '../../shared/charts/bar-list';
 import { Icon } from '../../shared/icon';
-import { DayPipe, GramsPipe, InrPipe, PhonePipe } from '../../shared/pipes';
+import { BalancePipe, DayPipe, GramsPipe, InrPipe, PhonePipe } from '../../shared/pipes';
 
 type PeriodKey = 'mtd' | '3m' | 'fy' | '12m';
 
@@ -36,7 +36,17 @@ interface Range {
 @Component({
   selector: 'app-dashboard',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, ColumnChart, BarList, Icon, InrPipe, DayPipe, GramsPipe, PhonePipe],
+  imports: [
+    RouterLink,
+    ColumnChart,
+    BarList,
+    Icon,
+    InrPipe,
+    BalancePipe,
+    DayPipe,
+    GramsPipe,
+    PhonePipe,
+  ],
   templateUrl: './dashboard.html',
   styleUrl: './dashboard.scss',
 })
@@ -164,6 +174,19 @@ export class DashboardPage {
   });
 
   protected readonly figures = this.periodFigures;
+
+  /** What the counter register is carrying, across every customer. */
+  protected readonly register = computed(() => {
+    let gold = 0;
+    let cash = 0;
+    let accounts = 0;
+    for (const summary of this.store.registerSummaries().values()) {
+      gold += summary.goldBalance;
+      cash += summary.cashBalance;
+      if (summary.goldBalance || summary.cashBalance) accounts++;
+    }
+    return { gold: Math.round(gold * 1000) / 1000, cash: Math.round(cash), accounts };
+  });
 
   protected readonly dues = computed(() => {
     let outstanding = 0;

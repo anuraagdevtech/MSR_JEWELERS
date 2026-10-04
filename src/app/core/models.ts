@@ -84,6 +84,57 @@ export interface Payment {
   createdAt: string;
 }
 
+/**
+ * One line of the shop's register — the whiteboard book kept at the counter: gold and cash
+ * handed to or received from a customer against a slip.
+ *
+ * The khata convention used everywhere else in the app applies here too:
+ *   debit  = handed over to the customer, so they owe it
+ *   credit = received from the customer, so it comes off what they owe
+ * Gold is counted in grams and cash in rupees, and the two run as separate balances.
+ * The register is its own book: it does not touch GST bills or receipts.
+ */
+export interface RegisterEntry {
+  id: string;
+  date: string;
+  /** Slip number exactly as written on the slip. */
+  slipNo: string;
+  customerId: string;
+  /** "c/o" — who brought the customer in, or who to call if they cannot be reached. */
+  careOfName?: string;
+  careOfPhone?: string;
+  /** Grams received from the customer. */
+  goldCredit: number;
+  /** Grams handed to the customer. */
+  goldDebit: number;
+  /** Rupees received from the customer. */
+  cashCredit: number;
+  /** Rupees handed to the customer. */
+  cashDebit: number;
+  notes?: string;
+  createdAt: string;
+}
+
+/** A register line with its S.No and the customer's balances as at that line. */
+export interface RegisterRow extends RegisterEntry {
+  serial: number;
+  /** Grams the customer owes after this line (negative = held for the customer). */
+  goldBalance: number;
+  /** Rupees the customer owes after this line (negative = advance held). */
+  cashBalance: number;
+}
+
+export interface RegisterSummary {
+  entries: number;
+  goldCredit: number;
+  goldDebit: number;
+  goldBalance: number;
+  cashCredit: number;
+  cashDebit: number;
+  cashBalance: number;
+  lastDate?: string;
+}
+
 export type RateCard = Record<Purity, number>;
 
 export interface ShopSettings {
@@ -109,6 +160,8 @@ export interface ShopData {
   customers: Customer[];
   bills: Bill[];
   payments: Payment[];
+  /** The counter register (gold and cash given and received against slips). */
+  registerEntries: RegisterEntry[];
   settings: ShopSettings;
 }
 

@@ -23,6 +23,7 @@ const OWNER_NAV: NavItem[] = [
   { path: '/customers', label: 'Customers', icon: 'users' },
   { path: '/bills', label: 'Bills', icon: 'receipt' },
   { path: '/ledger', label: 'Credit & debit', icon: 'ledger' },
+  { path: '/register', label: 'Register', icon: 'book' },
   { path: '/counter', label: 'Counter', icon: 'wallet' },
   { path: '/settings', label: 'Settings', icon: 'settings' },
 ];

@@ -203,6 +203,7 @@
         <h2 class="card-title">Your data</h2>
         <p class="card-sub">
           {{ counts().customers }} customers · {{ counts().bills }} bills · {{ counts().payments }} payments
+          · {{ counts().registerEntries }} register entries
           · {{ store.cloud ? 'stored in your Supabase database' : 'saved in this browser only' }}.
         </p>
       </div>

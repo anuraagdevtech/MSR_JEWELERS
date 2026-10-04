@@ -9,6 +9,9 @@ import {
   LedgerEntry,
   Payment,
   RateCard,
+  RegisterEntry,
+  RegisterRow,
+  RegisterSummary,
   ShopData,
   ShopSettings,
 } from './models';
@@ -24,12 +27,15 @@ import {
   CustomerRow,
   OpeningRow,
   PaymentRow,
+  RegisterEntryRow,
   billFromRow,
   billToRow,
   customerFromRow,
   customerToRow,
   paymentFromRow,
   paymentToRow,
+  registerEntryFromRow,
+  registerEntryToRow,
 } from './cloud-mapping';
 
 // Keep this key as-is: renaming it would orphan every browser's saved records.
@@ -40,6 +46,7 @@ const RESYNC_AFTER_MS = 2 * 60 * 1000;
 export type CustomerInput = Omit<Customer, 'id' | 'createdAt'>;
 export type BillInput = Omit<Bill, 'id' | 'billNo' | 'createdAt'>;
 export type PaymentInput = Omit<Payment, 'id' | 'receiptNo' | 'createdAt' | 'customerId'>;
+export type RegisterEntryInput = Omit<RegisterEntry, 'id' | 'createdAt'>;
 
 function uid(prefix: string): string {
   const random =
@@ -67,6 +74,10 @@ function isShopData(value: unknown): value is ShopData {
   );
 }
 
+function round3(value: number): number {
+  return Math.round((Number(value) || 0) * 1000) / 1000;
+}
+
 function withDefaults(settings: Partial<ShopSettings> | null | undefined): ShopSettings {
   const defaults = defaultSettings();
   const merged = { ...defaults, ...settings, rates: { ...defaults.rates, ...settings?.rates } };
@@ -75,8 +86,13 @@ function withDefaults(settings: Partial<ShopSettings> | null | undefined): ShopS
   return merged;
 }
 
+/** Fills in anything a backup from an older build is missing. */
 function withSettingsDefaults(data: ShopData): ShopData {
-  return { ...data, settings: withDefaults(data.settings) };
+  return {
+    ...data,
+    registerEntries: Array.isArray(data.registerEntries) ? data.registerEntries : [],
+    settings: withDefaults(data.settings),
+  };
 }
 
 function loadLocal(): ShopData {
@@ -129,6 +145,7 @@ export class ShopStore {
   readonly customers = computed(() => this.state().customers);
   readonly bills = computed(() => this.state().bills);
   readonly payments = computed(() => this.state().payments);
+  readonly registerEntries = computed(() => this.state().registerEntries);
   readonly settings = computed(() => this.state().settings);
 
   readonly customerById = computed(() => new Map(this.customers().map((c) => [c.id, c])));
@@ -220,6 +237,56 @@ export class ShopStore {
         oldestDueDays,
         goldExchangedGrams: customerPayments.reduce((sum, p) => sum + (p.oldGold?.weight ?? 0), 0),
       });
+    }
+    return summaries;
+  });
+
+  /**
+   * The register book, oldest line first, numbered S.No 1..N like the paper book, each line
+   * carrying that customer's gold and cash balance as at that line.
+   */
+  readonly registerRows = computed<RegisterRow[]>(() => {
+    const sorted = [...this.registerEntries()].sort(
+      (a, b) =>
+        a.date.localeCompare(b.date) ||
+        a.createdAt.localeCompare(b.createdAt) ||
+        a.id.localeCompare(b.id),
+    );
+    const gold = new Map<string, number>();
+    const cash = new Map<string, number>();
+    return sorted.map((entry, index) => {
+      const goldBalance = round3((gold.get(entry.customerId) ?? 0) + entry.goldDebit - entry.goldCredit);
+      const cashBalance = Math.round((cash.get(entry.customerId) ?? 0) + entry.cashDebit - entry.cashCredit);
+      gold.set(entry.customerId, goldBalance);
+      cash.set(entry.customerId, cashBalance);
+      return { ...entry, serial: index + 1, goldBalance, cashBalance };
+    });
+  });
+
+  /** What each customer owes the register, in grams and in rupees. */
+  readonly registerSummaries = computed(() => {
+    const summaries = new Map<string, RegisterSummary>();
+    for (const entry of this.registerEntries()) {
+      const current =
+        summaries.get(entry.customerId) ??
+        {
+          entries: 0,
+          goldCredit: 0,
+          goldDebit: 0,
+          goldBalance: 0,
+          cashCredit: 0,
+          cashDebit: 0,
+          cashBalance: 0,
+        };
+      current.entries += 1;
+      current.goldCredit = round3(current.goldCredit + entry.goldCredit);
+      current.goldDebit = round3(current.goldDebit + entry.goldDebit);
+      current.goldBalance = round3(current.goldDebit - current.goldCredit);
+      current.cashCredit += entry.cashCredit;
+      current.cashDebit += entry.cashDebit;
+      current.cashBalance = Math.round(current.cashDebit - current.cashCredit);
+      if (!current.lastDate || entry.date > current.lastDate) current.lastDate = entry.date;
+      summaries.set(entry.customerId, current);
     }
     return summaries;
   });
@@ -335,13 +402,17 @@ export class ShopStore {
   private async fetchEverything(): Promise<void> {
     const db = supabase!;
     try {
-      const [settingsRow, customerRows, openingRows, billRows, paymentRows] = await Promise.all([
-        db.from('shop_settings').select('data').eq('id', 1).maybeSingle(),
-        this.fetchAll<CustomerRow>('customers'),
-        this.auth.isOwner() ? this.fetchAll<OpeningRow>('customer_openings', 'customer_id') : Promise.resolve([]),
-        this.fetchAll<BillRow>('bills'),
-        this.fetchAll<PaymentRow>('payments'),
-      ]);
+      const owner = this.auth.isOwner();
+      const [settingsRow, customerRows, openingRows, billRows, paymentRows, registerRows] =
+        await Promise.all([
+          db.from('shop_settings').select('data').eq('id', 1).maybeSingle(),
+          this.fetchAll<CustomerRow>('customers'),
+          owner ? this.fetchAll<OpeningRow>('customer_openings', 'customer_id') : Promise.resolve([]),
+          this.fetchAll<BillRow>('bills'),
+          this.fetchAll<PaymentRow>('payments'),
+          // The register is nothing but balances, so it is for owners only.
+          owner ? this.fetchAll<RegisterEntryRow>('register_entries') : Promise.resolve([]),
+        ]);
       if (settingsRow.error) throw settingsRow.error;
       const openings = new Map(openingRows.map((o) => [o.customer_id, Number(o.amount) || 0]));
       const settings = withDefaults(settingsRow.data?.data as Partial<ShopSettings> | undefined);
@@ -352,6 +423,7 @@ export class ShopStore {
         customers: customerRows.map((row) => customerFromRow(row, openings.get(row.id) ?? 0)),
         bills: billRows.map(billFromRow),
         payments: paymentRows.map(paymentFromRow),
+        registerEntries: registerRows.map(registerEntryFromRow),
       });
       this.lastSync = Date.now();
       this.loadError.set(null);
@@ -418,6 +490,19 @@ export class ShopStore {
         }
         this.patch((d) => ({ ...d, payments: upsertById(d.payments, paymentFromRow(p.new)) }));
       }),
+      on<RegisterEntryRow & Record<string, unknown>>('register_entries', (p) => {
+        if (p.eventType === 'DELETE') {
+          const id = String(p.old['id']);
+          return this.patch((d) => ({
+            ...d,
+            registerEntries: d.registerEntries.filter((x) => x.id !== id),
+          }));
+        }
+        this.patch((d) => ({
+          ...d,
+          registerEntries: upsertById(d.registerEntries, registerEntryFromRow(p.new)),
+        }));
+      }),
       on<{ data: Partial<ShopSettings> }>('shop_settings', (p) => {
         if (p.eventType === 'DELETE') return;
         const settings = withDefaults(p.new.data);
@@ -441,7 +526,11 @@ export class ShopStore {
   }
 
   private removeCustomerLocally(id: string): void {
-    this.patch((d) => ({ ...d, customers: d.customers.filter((c) => c.id !== id) }));
+    this.patch((d) => ({
+      ...d,
+      customers: d.customers.filter((c) => c.id !== id),
+      registerEntries: d.registerEntries.filter((e) => e.customerId !== id),
+    }));
   }
 
   private removeBillLocally(id: string): void {
@@ -506,7 +595,11 @@ export class ShopStore {
   }
 
   canDeleteCustomer(id: string): boolean {
-    return !this.bills().some((b) => b.customerId === id) && !this.payments().some((p) => p.customerId === id);
+    return (
+      !this.bills().some((b) => b.customerId === id) &&
+      !this.payments().some((p) => p.customerId === id) &&
+      !this.registerEntries().some((e) => e.customerId === id)
+    );
   }
 
   async deleteCustomer(id: string): Promise<boolean> {
@@ -617,6 +710,54 @@ export class ShopStore {
     return this.nextNumber(this.settings().billPrefix, date, this.bills().map((b) => b.billNo));
   }
 
+  // ---- Register ----------------------------------------------------------------------------
+
+  async addRegisterEntry(input: RegisterEntryInput): Promise<RegisterEntry> {
+    const entry: RegisterEntry = { ...normaliseEntry(input), id: uid('r'), createdAt: nowStamp() };
+    if (supabase) {
+      const { error } = await supabase
+        .from('register_entries')
+        .insert(registerEntryToRow(entry, this.userId()));
+      if (error) this.fail(error);
+    }
+    this.patch((d) => ({ ...d, registerEntries: upsertById(d.registerEntries, entry) }));
+    return entry;
+  }
+
+  async updateRegisterEntry(id: string, input: RegisterEntryInput): Promise<void> {
+    const current = this.registerEntries().find((e) => e.id === id);
+    if (!current) return;
+    const next: RegisterEntry = { ...current, ...normaliseEntry(input) };
+    if (supabase) {
+      const { id: _id, created_at: _at, created_by: _by, ...fields } = registerEntryToRow(
+        next,
+        this.userId(),
+      );
+      const { error } = await supabase.from('register_entries').update(fields).eq('id', id);
+      if (error) this.fail(error);
+    }
+    this.patch((d) => ({ ...d, registerEntries: upsertById(d.registerEntries, next) }));
+  }
+
+  async deleteRegisterEntry(id: string): Promise<void> {
+    if (supabase) {
+      const { error } = await supabase.from('register_entries').delete().eq('id', id);
+      if (error) this.fail(error);
+    }
+    this.patch((d) => ({ ...d, registerEntries: d.registerEntries.filter((e) => e.id !== id) }));
+  }
+
+  /** The slip number after the highest one already in the book, if they run in a series. */
+  nextSlipNo(): string {
+    const numbers = this.registerEntries()
+      .map((e) => e.slipNo.match(/(\d+)\s*$/)?.[1])
+      .filter((n): n is string => !!n);
+    if (!numbers.length) return '';
+    const highest = numbers.reduce((max, n) => Math.max(max, Number(n)), 0);
+    const width = numbers.reduce((w, n) => Math.max(w, n.length), 1);
+    return String(highest + 1).padStart(width, '0');
+  }
+
   // ---- Settings & data ---------------------------------------------------------------------
 
   async updateSettings(patch: Partial<ShopSettings>): Promise<void> {
@@ -680,6 +821,7 @@ export class ShopStore {
       );
       await insert('bills', data.bills.map((b) => billToRow(b, user)));
       await insert('payments', data.payments.map((p) => paymentToRow(p, user)));
+      await insert('register_entries', data.registerEntries.map((e) => registerEntryToRow(e, user)));
       const { error } = await db.from('shop_settings').upsert({ id: 1, data: settings });
       if (error) this.fail(error);
     }
@@ -694,6 +836,23 @@ export class ShopStore {
       .reduce((max, no) => Math.max(max, Number(no.slice(stem.length)) || 0), 0);
     return `${stem}${String(highest + 1).padStart(4, '0')}`;
   }
+}
+
+/** Keeps grams to three decimals, rupees whole, and never lets a figure go negative. */
+function normaliseEntry(input: RegisterEntryInput): RegisterEntryInput {
+  const grams = (value: number) => Math.max(round3(value), 0);
+  const rupees = (value: number) => Math.max(Math.round(Number(value) || 0), 0);
+  return {
+    ...input,
+    slipNo: input.slipNo.trim(),
+    careOfName: input.careOfName?.trim() || undefined,
+    careOfPhone: input.careOfPhone?.trim() || undefined,
+    goldCredit: grams(input.goldCredit),
+    goldDebit: grams(input.goldDebit),
+    cashCredit: rupees(input.cashCredit),
+    cashDebit: rupees(input.cashDebit),
+    notes: input.notes?.trim() || undefined,
+  };
 }
 
 function groupBy<T>(items: T[], key: (item: T) => string): Map<string, T[]> {

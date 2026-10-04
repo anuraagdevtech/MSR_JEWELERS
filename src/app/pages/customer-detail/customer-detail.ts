@@ -4,7 +4,7 @@ import { ShopStore } from '../../core/store';
 import { UiService } from '../../core/ui.service';
 import { LedgerEntry, Payment } from '../../core/models';
 import { addDays, addMonths, financialYearStart, lastMonths, monthKey, todayISO } from '../../core/dates';
-import { formatMonth, initials } from '../../core/format';
+import { formatGrams, formatMonth, initials } from '../../core/format';
 import { whatsappReminderLink } from '../../core/reminders';
 import { downloadCsv } from '../../core/csv';
 import { ColumnChart, ColumnSeries } from '../../shared/charts/column-chart';
@@ -12,7 +12,7 @@ import { Icon } from '../../shared/icon';
 import { StatusChip } from '../../shared/status-chip';
 import { BalancePipe, DayPipe, GramsPipe, InrPipe, PhonePipe } from '../../shared/pipes';
 
-type Tab = 'statement' | 'bills' | 'payments';
+type Tab = 'statement' | 'bills' | 'payments' | 'register';
 type StatementRange = 'all' | 'fy' | '12m';
 
 interface StatementRow extends LedgerEntry {
@@ -107,6 +107,22 @@ export class CustomerDetailPage {
   });
 
   protected readonly openBills = computed(() => this.bills().filter((row) => (row.status?.balance ?? 0) > 0));
+
+  /** What the counter register says about this customer: gold in grams and cash. */
+  protected readonly registerSummary = computed(() => this.store.registerSummaries().get(this.id()));
+
+  protected readonly registerLines = computed(() =>
+    this.store
+      .registerRows()
+      .filter((row) => row.customerId === this.id())
+      .reverse(),
+  );
+
+  /** Gold balances read like the khata: "4.200 g Dr" when the customer owes the gold. */
+  protected goldBalance(grams: number): string {
+    if (!grams) return formatGrams(0);
+    return `${formatGrams(Math.abs(grams))} ${grams > 0 ? 'Dr' : 'Cr'}`;
+  }
 
   protected readonly trend = computed(() => {
     const months = lastMonths(this.store.today(), 12);

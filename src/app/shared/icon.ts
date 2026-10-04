@@ -88,6 +88,13 @@ const ICONS = {
     'M3 5v14c0 1.66 4.03 3 9 3s9-1.34 9-3V5',
     'M3 12c0 1.66 4.03 3 9 3s9-1.34 9-3',
   ],
+  book: [
+    'M4 3h11a2 2 0 0 1 2 2v16H6a2 2 0 0 1-2-2z',
+    'M17 7h3v14H6a2 2 0 0 0-2 2',
+    'M8 7h5',
+    'M8 11h5',
+  ],
+  scale: ['M12 3v18', 'M7 7h10', 'M5 21h14', 'M7 7 4 14h6z', 'M17 7l-3 7h6z'],
 } satisfies Record<string, string[]>;
 
 export type IconName = keyof typeof ICONS;

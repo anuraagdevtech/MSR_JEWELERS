@@ -17,12 +17,18 @@ zoneless). It runs in two modes:
 | **Customers** | Owners | Every account with lifetime billed, paid and khata balance (`Dr` = customer owes, `Cr` = advance). |
 | **Customer statement** | Owners | Running-balance statement, bills, payments, 12-month chart, print and CSV. |
 | **Bills / Credit & debit** | Owners | All invoices with status; day book of every debit and credit. |
+| **Register** | Owners | The counter's whiteboard book on screen: S.No, customer, phone, address, c/o name and phone, slip no. and date, gold credit and debit in grams, cash credit and debit, notes — with column totals, each customer's running gold and cash balance, a balances-per-customer view, print and CSV. |
 | **Counter** | Everyone | Quick actions, today's bills and receipts, cash in the drawer for the end-of-day tally. |
 | **New bill / Record payment** | Everyone | GST invoice with purity-wise rates, making, stones, HUID, old-gold exchange and payment at billing. |
 | **Settings** | Owners | Board rates, shop and invoice details, team access, theme, backup / restore. |
 
 Balances: a payment tagged to a bill settles that bill first; untagged payments and
 overpayments clear the oldest dues first; anything left over is held as an advance.
+
+The **register** is a separate book, the way it is on the shop's board. A *debit* is what was
+handed to the customer (so they owe it) and a *credit* is what came back in; gold runs in grams
+and cash in rupees as two balances, read as `Dr` (owed to the shop) or `Cr` (held for the
+customer). It does not touch GST bills or receipts, so nothing is counted twice.
 
 ## Security in hosted mode
 
@@ -33,8 +39,8 @@ overpayments clear the oldest dues first; anything left over is held as an advan
   nothing back, even by calling the database directly. See `supabase/schema.sql`.
 - **Roles.** *Owners* see and manage everything. *Counter staff* can look up customers, make bills
   and take payments; they see only the bills and receipts they entered today or yesterday, never
-  balances, dashboards, reports or settings, and cannot delete anything. New sign-ups get no
-  access until an owner assigns a role. Nobody can change their own role.
+  balances, dashboards, reports, the register or settings, and cannot delete anything. New sign-ups
+  get no access until an owner assigns a role. Nobody can change their own role.
 - **Bill and receipt numbers are issued by the database**, so two counters saving at once never
   clash.
 - **Auto sign-out** after 30 minutes without a click or keypress.
@@ -114,7 +120,8 @@ your Supabase project, copy `.env.example` to `.env` and fill in the two values 
 - `supabase/schema.sql` – tables, roles, row-level security, numbering functions.
 - `src/app/core/` – data model, bill maths (`calc.ts`), report maths (`analytics.ts`), the store
   (`store.ts`, local or cloud), sign-in and 2FA (`auth.service.ts`), route guards, sample data.
-- `src/app/pages/` – one lazily loaded folder per page; `reports/` holds the five report tabs.
+- `src/app/pages/` – one lazily loaded folder per page; `reports/` holds the five report tabs and
+  `register/` the counter's register book.
 - `src/app/shared/` – charts (SVG, no chart library), dialogs, customer picker, pipes.
 - `src/app/layout/` – sidebar and top bar around signed-in pages.
 - `scripts/ng.mjs` – runs the Angular CLI with the Supabase settings from the environment.

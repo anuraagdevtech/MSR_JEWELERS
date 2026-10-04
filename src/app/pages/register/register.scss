@@ -1,0 +1,123 @@
+.filter-label {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--text-2);
+}
+
+// The register is a wide book: every column of the paper page is here, so it scrolls
+// sideways on a narrow screen rather than squeezing the figures.
+.register-table {
+  min-width: 1040px;
+
+  th,
+  td {
+    padding: 9px 10px;
+  }
+
+  .sno {
+    width: 44px;
+    color: var(--text-3);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .address {
+    min-width: 120px;
+    max-width: 170px;
+    color: var(--text-2);
+  }
+
+  .notes {
+    min-width: 150px;
+    max-width: 240px;
+    color: var(--text-2);
+  }
+
+  .address,
+  .notes {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+.data-table {
+  .nowrap {
+    white-space: nowrap;
+  }
+
+  // Gold and cash sit in their own tinted pairs of columns, as the board rules them off.
+  .gold {
+    background: color-mix(in srgb, var(--series-debit) 7%, transparent);
+  }
+
+  .cash {
+    background: color-mix(in srgb, var(--series-credit) 7%, transparent);
+  }
+
+  thead th.gold,
+  thead th.cash,
+  tfoot td.gold,
+  tfoot td.cash {
+    background: color-mix(in srgb, var(--series-debit) 12%, var(--surface-2));
+  }
+
+  thead th.cash,
+  tfoot td.cash {
+    background: color-mix(in srgb, var(--series-credit) 12%, var(--surface-2));
+  }
+
+  .due {
+    color: var(--danger-text);
+    font-weight: 600;
+  }
+}
+
+.balance-cell {
+  justify-items: end;
+  font-variant-numeric: tabular-nums;
+}
+
+// Gold and cash columns in the entry form, ruled off the way the board is.
+.columns {
+  margin: 0;
+  padding: 14px 16px 4px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-2);
+
+  legend {
+    padding: 0 6px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    color: var(--text-3);
+    text-transform: uppercase;
+  }
+
+  label {
+    font-size: 0.8125rem;
+  }
+}
+
+.notice small {
+  display: block;
+  margin-top: 2px;
+  color: var(--text-3);
+}
+
+@media print {
+  .register-table {
+    min-width: 0;
+    font-size: 10px;
+
+    th,
+    td {
+      padding: 5px 6px;
+    }
+
+    .address,
+    .notes {
+      white-space: normal;
+    }
+  }
+}

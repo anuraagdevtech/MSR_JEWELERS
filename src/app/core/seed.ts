@@ -8,6 +8,7 @@ import {
   PaymentMode,
   Purity,
   RateCard,
+  RegisterEntry,
   ShopData,
   ShopSettings,
 } from './models';
@@ -36,7 +37,14 @@ export function defaultSettings(today = todayISO()): ShopSettings {
 }
 
 export function emptyData(today = todayISO()): ShopData {
-  return { version: 1, customers: [], bills: [], payments: [], settings: defaultSettings(today) };
+  return {
+    version: 1,
+    customers: [],
+    bills: [],
+    payments: [],
+    registerEntries: [],
+    settings: defaultSettings(today),
+  };
 }
 
 type Profile = 'prompt' | 'instalment' | 'slow' | 'wedding' | 'advance';
@@ -115,6 +123,40 @@ const PEOPLE: Array<[string, string, Profile]> = [
 ];
 
 const NEW_THIS_MONTH = 2;
+
+// "c/o" people on the register: a relative or neighbour the shop can call instead.
+const CARE_OF = [
+  'Shivanna (father)',
+  'Girija (mother)',
+  'Mahadev (husband)',
+  'Savitri (mother-in-law)',
+  'Basavaraj (brother)',
+  'Nagaveni (sister)',
+  'Chandru (son)',
+  'Yashoda (aunt)',
+  'Krishnappa (neighbour)',
+  'Sumitra (daughter)',
+];
+
+/** What brings a line into the register, and which columns it fills. */
+const REGISTER_LINES: Array<{
+  notes: string;
+  goldIn?: [number, number];
+  goldOut?: [number, number];
+  cashIn?: [number, number];
+  cashOut?: [number, number];
+  pick: number;
+}> = [
+  { notes: 'Old gold left for melting towards a new order', goldIn: [4, 28], pick: 1.4 },
+  { notes: 'Chain left for repair and polishing', goldIn: [2, 9], pick: 1 },
+  { notes: 'Bangles given on approval, to be returned or billed', goldOut: [4, 18], pick: 0.9 },
+  { notes: 'Advance towards an order being made', cashIn: [5_000, 60_000], pick: 1.3 },
+  { notes: 'Monthly instalment towards the gold savings scheme', cashIn: [2_000, 10_000], pick: 1.2 },
+  { notes: 'New ornament handed over against the old gold held', goldOut: [6, 24], cashIn: [2_000, 25_000], pick: 0.8 },
+  { notes: 'Repaired chain returned to the customer', goldOut: [2, 9], pick: 0.7 },
+  { notes: 'Cash returned, order cancelled', cashOut: [2_000, 18_000], pick: 0.4 },
+  { notes: 'Old silver articles weighed in and paid for in cash', cashOut: [1_000, 9_000], pick: 0.3 },
+];
 
 // Relative footfall by calendar month: weddings (Nov–Feb), Akshaya Tritiya (Apr–May),
 // Dasara / Dhanteras / Diwali (Oct–Nov); monsoon months are quiet.
@@ -493,7 +535,50 @@ export function generateDemoData(
       };
     });
 
+  // The counter register: the whiteboard book of gold and cash moving in and out on slips,
+  // kept alongside the billed sales. Roughly the last six months.
+  const registerStart = addMonths(today, -6);
+  const longStanding = customers.filter((c) => c.createdAt <= registerStart);
+  const registerCustomers = longStanding.length ? longStanding : customers;
+  const pickLine = () => {
+    const total = REGISTER_LINES.reduce((sum, line) => sum + line.pick, 0);
+    let roll = rand() * total;
+    for (const line of REGISTER_LINES) {
+      roll -= line.pick;
+      if (roll <= 0) return line;
+    }
+    return REGISTER_LINES[0];
+  };
+  const grams = (span?: [number, number]) => (span ? round3(between(span[0], span[1])) : 0);
+  const rupees = (span?: [number, number]) => (span ? roundTo(between(span[0], span[1]), 500) : 0);
+
+  const registerSeeds = Array.from({ length: 34 }, () => {
+    const customer = pick(registerCustomers);
+    const line = pickLine();
+    return {
+      date: seasonalDate(registerStart, today),
+      customerId: customer.id,
+      careOfName: chance(0.55) ? pick(CARE_OF) : undefined,
+      goldCredit: grams(line.goldIn),
+      goldDebit: grams(line.goldOut),
+      cashCredit: rupees(line.cashIn),
+      cashDebit: rupees(line.cashOut),
+      notes: line.notes,
+    };
+  })
+    .filter((seed) => seed.goldCredit || seed.goldDebit || seed.cashCredit || seed.cashDebit)
+    .sort((a, b) => a.date.localeCompare(b.date));
+
+  const slipStart = int(180, 260);
+  const registerEntries: RegisterEntry[] = registerSeeds.map((seed, index) => ({
+    ...seed,
+    id: `r${String(index + 1).padStart(4, '0')}`,
+    slipNo: String(slipStart + index).padStart(4, '0'),
+    careOfPhone: seed.careOfName ? phone() : undefined,
+    createdAt: `${seed.date}T${String(int(10, 19)).padStart(2, '0')}:${String(int(0, 59)).padStart(2, '0')}:00`,
+  }));
+
   const settings = defaultSettings(today);
   settings.rates = deriveRates(base.gold24, base.silver999);
-  return { version: 1, demo: true, customers, bills, payments, settings };
+  return { version: 1, demo: true, customers, bills, payments, registerEntries, settings };
 }

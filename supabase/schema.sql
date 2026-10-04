@@ -12,6 +12,8 @@
 --     bills/receipts they entered since the start of yesterday (for reprinting).
 --     They cannot see opening balances, other bills, dashboards or change settings,
 --     and cannot delete anything.
+--   * The register (the counter's whiteboard book of gold and cash on slips) is nothing
+--     but balances, so it is owner-only from end to end.
 --   * New sign-ups get no access ("pending") until an owner grants a role.
 
 -- ---------------------------------------------------------------------------------------
@@ -183,11 +185,34 @@ create table if not exists public.payments (
   created_by  uuid default auth.uid()
 );
 
+-- The counter register: the whiteboard book of gold (grams) and cash moving in and out
+-- against slips. Debit = handed to the customer, credit = received from them; the two run
+-- as separate balances and never touch the GST bills or receipts.
+create table if not exists public.register_entries (
+  id            text primary key,
+  entry_date    date not null,
+  slip_no       text not null default '',
+  customer_id   text not null references public.customers (id) on delete restrict,
+  care_of_name  text,
+  care_of_phone text,
+  gold_credit   numeric(12, 3) not null default 0 check (gold_credit >= 0),
+  gold_debit    numeric(12, 3) not null default 0 check (gold_debit >= 0),
+  cash_credit   numeric(14, 2) not null default 0 check (cash_credit >= 0),
+  cash_debit    numeric(14, 2) not null default 0 check (cash_debit >= 0),
+  notes         text,
+  created_at    timestamptz not null default now(),
+  created_by    uuid default auth.uid(),
+  constraint register_entries_not_empty
+    check (gold_credit > 0 or gold_debit > 0 or cash_credit > 0 or cash_debit > 0)
+);
+
 create index if not exists bills_customer_idx on public.bills (customer_id);
 create index if not exists bills_date_idx on public.bills (bill_date);
 create index if not exists payments_customer_idx on public.payments (customer_id);
 create index if not exists payments_bill_idx on public.payments (bill_id);
 create index if not exists payments_date_idx on public.payments (paid_on);
+create index if not exists register_customer_idx on public.register_entries (customer_id);
+create index if not exists register_date_idx on public.register_entries (entry_date);
 
 insert into public.shop_settings (id, data)
 values (1, jsonb_build_object(
@@ -215,9 +240,11 @@ alter table public.customers         enable row level security;
 alter table public.customer_openings enable row level security;
 alter table public.bills             enable row level security;
 alter table public.payments          enable row level security;
+alter table public.register_entries  enable row level security;
 
 revoke all on public.profiles, public.shop_settings, public.customers,
-  public.customer_openings, public.bills, public.payments from anon;
+  public.customer_openings, public.bills, public.payments,
+  public.register_entries from anon;
 
 -- profiles
 drop policy if exists "profiles: read own" on public.profiles;
@@ -313,6 +340,13 @@ create policy "payments: owners import" on public.payments
 drop policy if exists "payments: owners delete" on public.payments;
 create policy "payments: owners delete" on public.payments
   for delete to authenticated using ((select public.is_owner()));
+
+-- register_entries (owners only: every column is a balance)
+drop policy if exists "register: owners" on public.register_entries;
+create policy "register: owners" on public.register_entries
+  for all to authenticated
+  using ((select public.is_owner()))
+  with check ((select public.is_owner()));
 
 -- ---------------------------------------------------------------------------------------
 -- Numbering and counter operations
@@ -466,6 +500,7 @@ begin
   end if;
   delete from public.payments where true;
   delete from public.bills where true;
+  delete from public.register_entries where true;
   delete from public.customer_openings where true;
   delete from public.customers where true;
 end;
@@ -486,7 +521,8 @@ do $$
 declare
   t text;
 begin
-  foreach t in array array['customers', 'customer_openings', 'bills', 'payments', 'shop_settings'] loop
+  foreach t in array array['customers', 'customer_openings', 'bills', 'payments',
+                           'register_entries', 'shop_settings'] loop
     if not exists (
       select 1 from pg_publication_tables
       where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = t
