@@ -18,9 +18,11 @@
     <button type="button" class="btn btn-secondary" (click)="exportCsv()">
       <app-icon name="download" [size]="16" /> Export CSV
     </button>
-    <button type="button" class="btn btn-primary" (click)="openEntry()">
-      <app-icon name="plus" [size]="16" /> New entry
-    </button>
+    @if (auth.isAdmin()) {
+      <button type="button" class="btn btn-primary" (click)="openEntry()">
+        <app-icon name="plus" [size]="16" /> New entry
+      </button>
+    }
   </div>
 </header>
 
@@ -242,15 +244,17 @@
                 </td>
                 <td class="notes" [title]="row.notes">{{ row.notes || '' }}</td>
                 <td class="no-print">
-                  <button
-                    type="button"
-                    class="icon-btn sm"
-                    [attr.aria-label]="'Edit slip ' + (row.slipNo || row.serial)"
-                    title="Edit this entry"
-                    (click)="openEntry(row)"
-                  >
-                    <app-icon name="edit" [size]="15" />
-                  </button>
+                  @if (auth.isAdmin()) {
+                    <button
+                      type="button"
+                      class="icon-btn sm"
+                      [attr.aria-label]="'Edit slip ' + (row.slipNo || row.serial)"
+                      title="Edit this entry"
+                      (click)="openEntry(row)"
+                    >
+                      <app-icon name="edit" [size]="15" />
+                    </button>
+                  }
                 </td>
               </tr>
             }
@@ -284,9 +288,11 @@
         <app-icon name="book" [size]="36" />
         <strong>Nothing written in the register for this view</strong>
         Try a longer period or clear the search, or write the first entry.
-        <button type="button" class="btn btn-primary btn-sm no-print" (click)="openEntry()">
-          <app-icon name="plus" [size]="15" /> New entry
-        </button>
+        @if (auth.isAdmin()) {
+          <button type="button" class="btn btn-primary btn-sm no-print" (click)="openEntry()">
+            <app-icon name="plus" [size]="15" /> New entry
+          </button>
+        }
       </div>
     }
   </section>

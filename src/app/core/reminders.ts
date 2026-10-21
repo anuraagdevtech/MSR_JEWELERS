@@ -10,7 +10,7 @@ export function whatsappReminderLink(customer: Customer, balance: number, shopNa
   if (digits.length !== 10 || balance <= 0) return null;
   const firstName = customer.name.split(' ')[0];
   const message =
-    `Namaskara ${firstName}, this is a gentle reminder from ${shopName}. ` +
+    `Hello ${firstName}, this is a gentle reminder from ${shopName}. ` +
     `A balance of ${formatINR(balance)} is pending on your account. ` +
     `Kindly pay at your convenience or visit the showroom. Thank you!`;
   return `https://wa.me/91${digits}?text=${encodeURIComponent(message)}`;

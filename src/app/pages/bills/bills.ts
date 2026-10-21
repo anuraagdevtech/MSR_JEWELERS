@@ -1,3 +1,4 @@
+import { AuthService } from '../../core/auth.service';
 import { ChangeDetectionStrategy, Component, computed, inject, input, linkedSignal, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { ShopStore } from '../../core/store';
@@ -33,6 +34,7 @@ const PAGE = 40;
   `,
 })
 export class BillsPage {
+  protected readonly auth = inject(AuthService);
   private readonly store = inject(ShopStore);
   private readonly router = inject(Router);
 

@@ -32,7 +32,7 @@ export class CounterPage {
   protected readonly auth = inject(AuthService);
 
   protected readonly todayLabel = computed(() =>
-    new Intl.DateTimeFormat('en-IN', { weekday: 'long', day: 'numeric', month: 'long' }).format(new Date()),
+    new Intl.DateTimeFormat('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).format(new Date()),
   );
 
   private readonly bills = computed(() => this.store.bills().filter((b) => b.date === this.store.today()));

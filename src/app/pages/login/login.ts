@@ -13,6 +13,7 @@ import { FormsModule } from '@angular/forms';
 import { DomSanitizer, SafeUrl } from '@angular/platform-browser';
 import { Router } from '@angular/router';
 import { AuthService } from '../../core/auth.service';
+import { DEMO_ACCOUNTS } from '../../core/demo-accounts';
 import { Icon } from '../../shared/icon';
 
 type SignedOutView = 'password' | 'forgot' | 'sent';
@@ -25,6 +26,7 @@ type SignedOutView = 'password' | 'forgot' | 'sent';
   styleUrl: './login.scss',
 })
 export class LoginPage {
+  protected readonly demoAccounts = DEMO_ACCOUNTS;
   protected readonly auth = inject(AuthService);
   private readonly router = inject(Router);
   private readonly sanitizer = inject(DomSanitizer);
@@ -76,7 +78,7 @@ export class LoginPage {
 
   protected signIn(): Promise<void> {
     if (!this.email().trim() || !this.password()) {
-      this.error.set('Enter your email and password.');
+      this.error.set('Enter your username or email and password.');
       return Promise.resolve();
     }
     return this.attempt(() => this.auth.signIn(this.email(), this.password()));
@@ -157,7 +159,7 @@ export class LoginPage {
   protected checkAgain(): Promise<void> {
     return this.attempt(async () => {
       await this.auth.refresh();
-      return this.auth.stage() === 'no-access' ? 'Still waiting. Ask an owner to choose your access in Settings.' : null;
+      return this.auth.stage() === 'no-access' ? 'Still waiting. Ask an admin to choose your access in Settings.' : null;
     });
   }
 }

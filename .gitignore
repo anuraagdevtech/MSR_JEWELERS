@@ -45,3 +45,10 @@ Thumbs.db
 
 # Local Supabase settings
 .env
+
+# Local database state and credentials
+.env.*
+!.env.example
+.local-supabase/
+supabase/.temp/
+supabase/.branches/

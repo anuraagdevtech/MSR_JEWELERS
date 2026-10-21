@@ -61,6 +61,7 @@ export interface Bill {
   gstPercent: number;
   notes?: string;
   createdAt: string;
+  createdBy?: string;
 }
 
 export interface OldGoldDetail {
@@ -82,6 +83,7 @@ export interface Payment {
   oldGold?: OldGoldDetail;
   notes?: string;
   createdAt: string;
+  createdBy?: string;
 }
 
 /**
@@ -143,6 +145,8 @@ export interface ShopSettings {
   address: string;
   phone: string;
   gstin: string;
+  /** Indian state code; Telangana is 36. Kept separately until the real GSTIN is entered. */
+  stateCode?: string;
   billPrefix: string;
   receiptPrefix: string;
   creditDays: number;

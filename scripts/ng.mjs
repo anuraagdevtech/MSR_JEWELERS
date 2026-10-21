@@ -1,6 +1,6 @@
 // Runs the Angular CLI with the Supabase project settings baked in as build-time constants.
 // Values come from the environment (e.g. Vercel project settings) or a local, git-ignored
-// .env file. Without them the app runs in local mode: no login, data kept in this browser.
+// .env file. Without them the app uses demo logins and stores data in this browser.
 import { spawn } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 
@@ -14,7 +14,13 @@ function readDotEnv(path) {
   return values;
 }
 
-const env = { ...readDotEnv('.env'), ...process.env };
+const localSupabase = process.argv.includes('--local-supabase');
+const cliArgs = process.argv.slice(2).filter((arg) => arg !== '--local-supabase');
+const env = { ...readDotEnv(localSupabase ? '.env.supabase.local' : '.env'), ...process.env };
+if (localSupabase && !env.SUPABASE_URL) {
+  console.error('Run npm run supabase:setup first.');
+  process.exit(1);
+}
 const url = env.SUPABASE_URL ?? '';
 const key = env.SUPABASE_ANON_KEY || env.SUPABASE_PUBLISHABLE_KEY || '';
 
@@ -24,10 +30,10 @@ if (url && key) {
   defines.push('--define', `SUPABASE_ANON_KEY=${JSON.stringify(key)}`);
   console.log(`Cloud mode: ${url}`);
 } else {
-  console.log('Local mode: SUPABASE_URL / SUPABASE_ANON_KEY not set, data stays in this browser.');
+  console.log('Local demo login: SUPABASE_URL / SUPABASE_ANON_KEY not set, data stays in this browser.');
 }
 
-const child = spawn(process.execPath, ['node_modules/@angular/cli/bin/ng.js', ...process.argv.slice(2), ...defines], {
+const child = spawn(process.execPath, ['node_modules/@angular/cli/bin/ng.js', ...cliArgs, ...defines], {
   stdio: 'inherit',
 });
 child.on('exit', (code) => process.exit(code ?? 1));

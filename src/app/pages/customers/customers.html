@@ -7,9 +7,11 @@
     <button type="button" class="btn btn-secondary" (click)="exportCsv()">
       <app-icon name="download" [size]="16" /> Export
     </button>
-    <button type="button" class="btn btn-primary" (click)="addCustomer()">
-      <app-icon name="userPlus" [size]="16" /> Add customer
-    </button>
+    @if (auth.canBill()) {
+      <button type="button" class="btn btn-primary" (click)="addCustomer()">
+        <app-icon name="userPlus" [size]="16" /> Add customer
+      </button>
+    }
   </div>
 </header>
 
@@ -127,9 +129,11 @@
       } @else {
         No customers in this list yet.
       }
-      <button type="button" class="btn btn-primary btn-sm" (click)="addCustomer()">
-        <app-icon name="userPlus" [size]="16" /> Add customer
-      </button>
+      @if (auth.canBill()) {
+        <button type="button" class="btn btn-primary btn-sm" (click)="addCustomer()">
+          <app-icon name="userPlus" [size]="16" /> Add customer
+        </button>
+      }
     </div>
   }
 </section>

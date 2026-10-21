@@ -7,14 +7,15 @@
 --   * Every read and write requires a signed-in user who has passed two-factor
 --     authentication (JWT "aal" claim = aal2). Without the authenticator code the
 --     database returns nothing, whatever the app shows.
---   * Owners see and manage everything.
---   * Staff can look up customers, create bills and record payments, and see only the
+--   * Admin sees and manages everything; Analytics can read the full book and reports.
+--     Billing creates bills and receipts and sees only its own recent work.
+--   * Billing can look up customers, create bills and record payments, and see only the
 --     bills/receipts they entered since the start of yesterday (for reprinting).
 --     They cannot see opening balances, other bills, dashboards or change settings,
 --     and cannot delete anything.
 --   * The register (the counter's whiteboard book of gold and cash on slips) is nothing
---     but balances, so it is owner-only from end to end.
---   * New sign-ups get no access ("pending") until an owner grants a role.
+--     but balances: Admin can manage it and Analytics can read it.
+--   * New users get no access ("pending") until an admin grants a role.
 
 -- ---------------------------------------------------------------------------------------
 -- People and roles
@@ -24,9 +25,16 @@ create table if not exists public.profiles (
   user_id    uuid primary key references auth.users (id) on delete cascade,
   email      text not null,
   full_name  text not null default '',
-  role       text not null default 'pending' check (role in ('owner', 'staff', 'pending')),
+  role       text not null default 'pending' check (role in ('admin', 'billing', 'analytics', 'pending')),
   created_at timestamptz not null default now()
 );
+
+-- Upgrade existing Owner/Staff accounts without losing users or their records.
+alter table public.profiles drop constraint if exists profiles_role_check;
+update public.profiles set role = case role when 'owner' then 'admin' when 'staff' then 'billing' else role end
+where role in ('owner', 'staff');
+alter table public.profiles add constraint profiles_role_check
+  check (role in ('admin', 'billing', 'analytics', 'pending'));
 
 create or replace function public.handle_new_user()
 returns trigger
@@ -102,7 +110,7 @@ returns boolean
 language sql
 stable
 as $$
-  select public.has_mfa() and coalesce(public.my_role(), '') in ('owner', 'staff');
+  select public.has_mfa() and coalesce(public.my_role(), '') in ('admin', 'billing', 'analytics');
 $$;
 
 create or replace function public.is_owner()
@@ -110,7 +118,18 @@ returns boolean
 language sql
 stable
 as $$
-  select public.has_mfa() and coalesce(public.my_role(), '') = 'owner';
+  select public.has_mfa() and coalesce(public.my_role(), '') = 'admin';
+$$;
+
+-- Analytics reads the full book but has no business-data write permission.
+create or replace function public.can_read_book()
+returns boolean language sql stable as $$
+  select public.has_mfa() and coalesce(public.my_role(), '') in ('admin', 'analytics');
+$$;
+
+create or replace function public.can_bill()
+returns boolean language sql stable as $$
+  select public.has_mfa() and coalesce(public.my_role(), '') in ('admin', 'billing');
 $$;
 
 -- Rows a staff member entered since the start of yesterday, India time.
@@ -218,7 +237,8 @@ insert into public.shop_settings (id, data)
 values (1, jsonb_build_object(
   'shopName', 'MSR Jewellers',
   'tagline', 'Gold · Diamond · Silver',
-  'address', '',
+  'address', 'Gandhinagar, Hyderabad, Telangana',
+  'stateCode', '36',
   'phone', '',
   'gstin', '',
   'billPrefix', 'MSR',
@@ -229,6 +249,14 @@ values (1, jsonb_build_object(
   'ratesUpdatedAt', to_char(now() at time zone 'Asia/Kolkata', 'YYYY-MM-DD"T"HH24:MI:SS')
 ))
 on conflict (id) do nothing;
+
+-- Correct only the previous generated placeholders. Real shop contact/tax details survive.
+update public.shop_settings set data = data || jsonb_build_object('address', 'Gandhinagar, Hyderabad, Telangana')
+where data ->> 'address' in ('', '12, Sayyaji Rao Road, Mysuru, Karnataka 570001');
+update public.shop_settings set data = data || '{"phone":""}'::jsonb where data ->> 'phone' = '0821 242 0000';
+update public.shop_settings set data = data || '{"gstin":""}'::jsonb where data ->> 'gstin' = '29ABCDE1234F1Z5';
+update public.shop_settings set data = data || jsonb_build_object('stateCode', coalesce(nullif(left(data->>'gstin', 2), ''), '36'))
+where not (data ? 'stateCode');
 
 -- ---------------------------------------------------------------------------------------
 -- Row-level security
@@ -258,7 +286,7 @@ create policy "profiles: owners read all" on public.profiles
 drop policy if exists "profiles: update own name" on public.profiles;
 create policy "profiles: update own name" on public.profiles
   for update to authenticated
-  using (user_id = (select auth.uid()) and (select public.has_mfa()))
+  using (user_id = (select auth.uid()) and (select public.is_owner()))
   with check (user_id = (select auth.uid()));
 
 drop policy if exists "profiles: owners manage" on public.profiles;
@@ -286,13 +314,13 @@ create policy "customers: members read" on public.customers
 drop policy if exists "customers: members add" on public.customers;
 create policy "customers: members add" on public.customers
   for insert to authenticated
-  with check ((select public.is_member()) and created_by = (select auth.uid()));
+  with check ((select public.can_bill()) and created_by = (select auth.uid()));
 
 drop policy if exists "customers: members edit" on public.customers;
 create policy "customers: members edit" on public.customers
   for update to authenticated
-  using ((select public.is_member()))
-  with check ((select public.is_member()));
+  using ((select public.can_bill()))
+  with check ((select public.can_bill()));
 
 drop policy if exists "customers: owners delete" on public.customers;
 create policy "customers: owners delete" on public.customers
@@ -308,12 +336,12 @@ create policy "openings: owners" on public.customer_openings
 -- bills: staff create them through create_bill(); direct inserts are for owner imports.
 drop policy if exists "bills: owners read" on public.bills;
 create policy "bills: owners read" on public.bills
-  for select to authenticated using ((select public.is_owner()));
+  for select to authenticated using ((select public.can_read_book()));
 
 drop policy if exists "bills: staff read own recent" on public.bills;
 create policy "bills: staff read own recent" on public.bills
   for select to authenticated
-  using ((select public.is_member()) and public.in_staff_window(created_by, created_at));
+  using ((select public.can_bill()) and public.in_staff_window(created_by, created_at));
 
 drop policy if exists "bills: owners import" on public.bills;
 create policy "bills: owners import" on public.bills
@@ -326,12 +354,12 @@ create policy "bills: owners delete" on public.bills
 -- payments
 drop policy if exists "payments: owners read" on public.payments;
 create policy "payments: owners read" on public.payments
-  for select to authenticated using ((select public.is_owner()));
+  for select to authenticated using ((select public.can_read_book()));
 
 drop policy if exists "payments: staff read own recent" on public.payments;
 create policy "payments: staff read own recent" on public.payments
   for select to authenticated
-  using ((select public.is_member()) and public.in_staff_window(created_by, created_at));
+  using ((select public.can_bill()) and public.in_staff_window(created_by, created_at));
 
 drop policy if exists "payments: owners import" on public.payments;
 create policy "payments: owners import" on public.payments
@@ -347,6 +375,19 @@ create policy "register: owners" on public.register_entries
   for all to authenticated
   using ((select public.is_owner()))
   with check ((select public.is_owner()));
+
+drop policy if exists "openings: analytics read" on public.customer_openings;
+create policy "openings: analytics read" on public.customer_openings
+  for select to authenticated using ((select public.can_read_book()));
+
+drop policy if exists "register: analytics read" on public.register_entries;
+create policy "register: analytics read" on public.register_entries
+  for select to authenticated using ((select public.can_read_book()));
+
+-- Explicit privileges keep local PostgreSQL and hosted Supabase behaviour identical; RLS
+-- still decides which rows each profile may read or mutate.
+grant select, insert, update, delete on public.profiles, public.shop_settings, public.customers,
+  public.customer_openings, public.bills, public.payments, public.register_entries to authenticated;
 
 -- ---------------------------------------------------------------------------------------
 -- Numbering and counter operations
@@ -398,6 +439,14 @@ declare
   v_prefix text;
   v_row    public.payments;
 begin
+  if (p ->> 'date')::date > (now() at time zone 'Asia/Kolkata')::date then
+    raise exception 'Payment date cannot be in the future' using errcode = '22023';
+  end if;
+  if p_bill_id is not null and not exists (
+    select 1 from public.bills where id = p_bill_id and customer_id = p_customer_id
+  ) then
+    raise exception 'The bill does not belong to this customer' using errcode = '22023';
+  end if;
   select coalesce(data ->> 'receiptPrefix', 'RC') into v_prefix from public.shop_settings where id = 1;
   insert into public.payments
     (id, receipt_no, customer_id, bill_id, paid_on, amount, mode, reference, old_gold, notes, created_by)
@@ -434,7 +483,7 @@ declare
   v_payment  jsonb;
   v_payments jsonb := '[]'::jsonb;
 begin
-  if not public.is_member() then
+  if not public.can_bill() then
     raise exception 'Two-factor sign-in and shop access are required' using errcode = '42501';
   end if;
   if (p_bill ->> 'date')::date > (now() at time zone 'Asia/Kolkata')::date then
@@ -473,7 +522,7 @@ security definer
 set search_path = public
 as $$
 begin
-  if not public.is_member() then
+  if not public.can_bill() then
     raise exception 'Two-factor sign-in and shop access are required' using errcode = '42501';
   end if;
   if (p_payment ->> 'date')::date > (now() at time zone 'Asia/Kolkata')::date then

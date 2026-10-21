@@ -1,8 +1,9 @@
 import { inject } from '@angular/core';
 import { CanActivateFn, Router } from '@angular/router';
 import { AuthService } from './auth.service';
+import { homeForRole } from './roles';
 
-/** Signed in, past two-factor, and holding an owner or staff role. */
+/** Signed in, past two-factor, and assigned an active role. */
 export const authGuard: CanActivateFn = async (_route, state) => {
   const auth = inject(AuthService);
   const router = inject(Router);
@@ -12,10 +13,20 @@ export const authGuard: CanActivateFn = async (_route, state) => {
   return router.createUrlTree(['/login'], { queryParams: next });
 };
 
-/** Dashboards, balances, reports and settings are for owners; staff land on the counter. */
-export const ownerGuard: CanActivateFn = () => {
+/** Only Admin can manage settings and team access. */
+export const adminGuard: CanActivateFn = () => {
   const auth = inject(AuthService);
-  return auth.isOwner() || inject(Router).createUrlTree(['/counter']);
+  return auth.isAdmin() || inject(Router).createUrlTree([homeForRole(auth.role())]);
+};
+
+export const analyticsGuard: CanActivateFn = () => {
+  const auth = inject(AuthService);
+  return auth.canAnalyse() || inject(Router).createUrlTree([homeForRole(auth.role())]);
+};
+
+export const billingGuard: CanActivateFn = () => {
+  const auth = inject(AuthService);
+  return auth.canBill() || inject(Router).createUrlTree([homeForRole(auth.role())]);
 };
 
 /** Keeps signed-in users away from the login screen. */
@@ -28,12 +39,12 @@ export const guestGuard: CanActivateFn = async () => {
 };
 
 /**
- * The landing page for "/": the dashboard for owners, the counter for staff. A guard rather
+ * The landing page for "/": dashboards for Admin/Analytics, the counter for Billing. A guard rather
  * than a redirect, because redirects are resolved before the session check has finished.
  */
 export const homeGuard: CanActivateFn = async () => {
   const auth = inject(AuthService);
   const router = inject(Router);
   await auth.whenSettled();
-  return router.createUrlTree([auth.isOwner() ? '/dashboard' : '/counter']);
+  return router.createUrlTree([homeForRole(auth.role())]);
 };

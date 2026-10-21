@@ -21,7 +21,7 @@ const dateFormat = new Intl.DateTimeFormat('en-IN', {
   year: 'numeric',
 });
 
-const shortDateFormat = new Intl.DateTimeFormat('en-IN', { day: '2-digit', month: 'short' });
+const shortDateFormat = new Intl.DateTimeFormat('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 const monthFormat = new Intl.DateTimeFormat('en-IN', { month: 'short' });
 const monthYearFormat = new Intl.DateTimeFormat('en-IN', { month: 'short', year: 'numeric' });
 
@@ -64,7 +64,7 @@ export function formatShortDate(iso: string | undefined | null): string {
   return iso ? shortDateFormat.format(parseISODate(iso)) : '—';
 }
 
-export function formatMonth(monthKey: string, withYear = false): string {
+export function formatMonth(monthKey: string, withYear = true): string {
   const date = parseISODate(`${monthKey}-01`);
   return withYear ? monthYearFormat.format(date) : monthFormat.format(date);
 }

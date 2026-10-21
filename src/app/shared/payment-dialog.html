@@ -22,7 +22,7 @@
         />
       </div>
 
-      @if (customer() && auth.isOwner()) {
+      @if (customer() && auth.isAdmin()) {
         <div class="field">
           <label for="payment-bill">Adjust against</label>
           <select
@@ -109,7 +109,7 @@
           <div class="field">
             <div class="label-row">
               <label for="payment-amount">Amount (₹)</label>
-              @if (suggested() > 0 && auth.isOwner()) {
+              @if (suggested() > 0 && auth.isAdmin()) {
                 <button type="button" class="link-btn" (click)="amount.set(suggested())">
                   {{ billId() ? 'Bill balance' : 'Full due' }} {{ suggested() | inr }}
                 </button>
@@ -163,7 +163,7 @@
         </p>
       }
 
-      @if (customer() && auth.isOwner()) {
+      @if (customer() && auth.isAdmin()) {
         <div class="balance-strip">
           <div>
             <span>Balance now</span>

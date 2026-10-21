@@ -1,7 +1,7 @@
 @let t = totals();
 
-<a class="back-link" [routerLink]="auth.isOwner() ? '/bills' : '/counter'">
-  <app-icon name="arrowLeft" [size]="16" /> {{ auth.isOwner() ? 'Bills' : 'Counter' }}
+<a class="back-link" [routerLink]="auth.isAdmin() ? '/bills' : '/counter'">
+  <app-icon name="arrowLeft" [size]="16" /> {{ auth.isAdmin() ? 'Bills' : 'Counter' }}
 </a>
 
 <header class="page-head">
@@ -238,7 +238,7 @@
           id="bill-notes"
           class="input"
           rows="2"
-          placeholder="e.g. Delivery on 12 Nov · resizing free"
+          [placeholder]="'e.g. Delivery on 12 Nov ' + date().slice(0, 4) + ' · resizing included'"
           [(ngModel)]="notes"
         ></textarea>
       </div>
@@ -346,14 +346,14 @@
       }
 
       <dl class="totals khata">
-        @if (customerRecord() && auth.isOwner()) {
+        @if (customerRecord() && auth.isAdmin()) {
           <div><dt>Previous balance</dt><dd>{{ previousBalance() | balance }}</dd></div>
         }
         <div>
           <dt>{{ toKhata() >= 0 ? 'This bill to khata' : 'Extra held as advance' }}</dt>
           <dd [class.text-danger]="toKhata() > 0" [class.text-good]="toKhata() <= 0">{{ toKhata() | balance }}</dd>
         </div>
-        @if (customerRecord() && auth.isOwner()) {
+        @if (customerRecord() && auth.isAdmin()) {
           <div class="grand"><dt>New account balance</dt><dd>{{ newBalance() | balance }}</dd></div>
         }
       </dl>

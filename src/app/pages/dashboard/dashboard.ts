@@ -1,3 +1,4 @@
+import { AuthService } from '../../core/auth.service';
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { ShopStore } from '../../core/store';
@@ -51,6 +52,7 @@ interface Range {
   styleUrl: './dashboard.scss',
 })
 export class DashboardPage {
+  protected readonly auth = inject(AuthService);
   protected readonly store = inject(ShopStore);
   protected readonly ui = inject(UiService);
 

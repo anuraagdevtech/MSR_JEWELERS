@@ -160,3 +160,8 @@ h1 {
   font-size: 0.75rem;
   color: var(--text-3);
 }
+
+.demo-accounts { margin-top: 20px; padding: 14px; border: 1px solid var(--border); border-radius: var(--radius); font-size: .8125rem; }
+.demo-accounts p { margin-bottom: 6px; }
+.demo-accounts strong { display: inline-block; min-width: 84px; }
+.demo-accounts code { user-select: all; }

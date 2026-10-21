@@ -1,3 +1,4 @@
+import { AuthService } from '../../core/auth.service';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -69,6 +70,7 @@ const PAGE_SIZE = 100;
   styleUrl: './register.scss',
 })
 export class RegisterPage {
+  protected readonly auth = inject(AuthService);
   protected readonly store = inject(ShopStore);
   private readonly ui = inject(UiService);
   private readonly dialog = viewChild<ElementRef<HTMLDialogElement>>('dialog');

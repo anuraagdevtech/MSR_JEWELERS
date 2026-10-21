@@ -1,8 +1,10 @@
 import { Injectable, computed, signal } from '@angular/core';
 import { CLOUD } from './env';
 import { friendlyError, supabase } from './supabase';
+import { AccountRole, Role, ROLE_LABELS, normaliseRole, permissionsFor } from './roles';
+import { DEMO_ACCOUNTS, findDemoAccount } from './demo-accounts';
 
-export type Role = 'owner' | 'staff';
+export type { Role } from './roles';
 
 /**
  * Where a visitor is in the sign-in journey:
@@ -15,7 +17,7 @@ export interface Profile {
   userId: string;
   email: string;
   fullName: string;
-  role: Role | 'pending';
+  role: AccountRole;
 }
 
 export interface Enrolment {
@@ -25,22 +27,37 @@ export interface Enrolment {
 }
 
 const IDLE_LIMIT_MS = 30 * 60 * 1000;
-const LOCAL_PROFILE: Profile = { userId: 'local', email: '', fullName: 'Owner', role: 'owner' };
+const DEMO_SESSION_KEY = 'msr-demo-account';
+
+function restoreDemoProfile(): Profile | null {
+  if (CLOUD) return null;
+  try {
+    const username = sessionStorage.getItem(DEMO_SESSION_KEY);
+    const account = DEMO_ACCOUNTS.find((a) => a.username === username);
+    return account ? { userId: `demo-${account.role}`, email: account.email, fullName: account.name, role: account.role } : null;
+  } catch {
+    return null;
+  }
+}
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
   readonly cloud = CLOUD;
-  readonly stage = signal<AuthStage>(CLOUD ? 'loading' : 'ready');
-  readonly profile = signal<Profile | null>(CLOUD ? null : LOCAL_PROFILE);
+  readonly profile = signal<Profile | null>(restoreDemoProfile());
+  readonly stage = signal<AuthStage>(CLOUD ? 'loading' : this.profile() ? 'ready' : 'signed-out');
   readonly email = signal('');
   /** Set when the session ended on its own, shown on the login screen. */
   readonly notice = signal<string | null>(null);
 
   readonly role = computed<Role | null>(() => {
     const role = this.profile()?.role;
-    return role === 'owner' || role === 'staff' ? role : null;
+    return role && role !== 'pending' ? role : null;
   });
-  readonly isOwner = computed(() => this.role() === 'owner');
+  readonly permissions = computed(() => permissionsFor(this.role()));
+  readonly isAdmin = computed(() => this.permissions().manage);
+  readonly canBill = computed(() => this.permissions().bill);
+  readonly canAnalyse = computed(() => this.permissions().analyse);
+  readonly roleLabel = computed(() => ROLE_LABELS[this.role() ?? 'pending']);
   readonly displayName = computed(() => {
     const p = this.profile();
     return p?.fullName || p?.email.split('@')[0] || '';
@@ -55,6 +72,7 @@ export class AuthService {
     this.settled = new Promise((resolve) => (this.resolveSettled = resolve));
     if (!supabase) {
       this.resolveSettled();
+      this.watchIdle();
       return;
     }
     supabase.auth.onAuthStateChange((event) => {
@@ -100,11 +118,11 @@ export class AuthService {
       .eq('user_id', session.user.id)
       .maybeSingle();
     const profile: Profile | null = row
-      ? { userId: row.user_id, email: row.email, fullName: row.full_name ?? '', role: row.role }
+      ? { userId: row.user_id, email: row.email, fullName: row.full_name ?? '', role: normaliseRole(row.role) }
       : null;
     this.profile.set(profile);
 
-    if (!profile || (profile.role !== 'owner' && profile.role !== 'staff')) {
+    if (!profile || profile.role === 'pending') {
       this.stage.set('no-access');
     } else if (this.recovering) {
       this.stage.set('recovery');
@@ -115,9 +133,23 @@ export class AuthService {
   }
 
   async signIn(email: string, password: string): Promise<string | null> {
-    if (!supabase) return null;
     this.notice.set(null);
-    const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
+    if (!supabase) {
+      const account = findDemoAccount(email, password);
+      if (!account) return 'Username or password is incorrect.';
+      this.profile.set({ userId: `demo-${account.role}`, email: account.email, fullName: account.name, role: account.role });
+      this.email.set(account.email);
+      this.lastActivity = Date.now();
+      try {
+        sessionStorage.setItem(DEMO_SESSION_KEY, account.username);
+      } catch {
+        // The demo still works in memory when the browser blocks session storage.
+      }
+      this.stage.set('ready');
+      return null;
+    }
+    const identifier = email.includes('@') ? email.trim() : `${email.trim().toLowerCase()}@msr.local`;
+    const { error } = await supabase.auth.signInWithPassword({ email: identifier, password });
     if (error) {
       return /invalid login/i.test(error.message) ? 'Email or password is incorrect.' : friendlyError(error);
     }
@@ -186,6 +218,13 @@ export class AuthService {
     this.recovering = false;
     this.notice.set(reason ?? null);
     if (supabase) await supabase.auth.signOut();
+    else {
+      try {
+        sessionStorage.removeItem(DEMO_SESSION_KEY);
+      } catch {
+        // Always clear the in-memory session, even if browser storage is blocked.
+      }
+    }
     this.profile.set(null);
     this.stage.set('signed-out');
   }

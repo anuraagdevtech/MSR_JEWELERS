@@ -18,6 +18,7 @@ import { phoneDigits } from '../core/format';
 import { Icon } from './icon';
 
 const CITIES = [
+  'Hyderabad', 'Secunderabad', 'Warangal', 'Karimnagar', 'Nizamabad', 'Khammam', 'Siddipet',
   'Bengaluru', 'Mysuru', 'Mangaluru', 'Hubballi', 'Dharwad', 'Belagavi', 'Udupi', 'Shivamogga',
   'Davanagere', 'Tumakuru', 'Mandya', 'Hassan', 'Ballari', 'Chikkamagaluru', 'Karwar', 'Sirsi',
 ];
@@ -88,7 +89,7 @@ const CITIES = [
               <label for="cust-gstin">GSTIN <span class="optional">B2B only</span></label>
               <input id="cust-gstin" class="input" name="gstin" [(ngModel)]="gstin" />
             </div>
-            @if (auth.isOwner()) {
+            @if (auth.isAdmin()) {
             <div class="field">
               <label for="cust-opening">Opening balance (₹)</label>
               <input
@@ -118,7 +119,7 @@ const CITIES = [
         </div>
 
         <footer class="modal-foot">
-          @if (editingId() && canDelete() && auth.isOwner()) {
+          @if (editingId() && canDelete() && auth.isAdmin()) {
             <button type="button" class="btn btn-ghost btn-danger me-auto" (click)="remove()">
               <app-icon name="trash" [size]="16" /> Delete
             </button>

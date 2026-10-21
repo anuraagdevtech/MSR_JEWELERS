@@ -5,7 +5,7 @@
     <p class="eyebrow">{{ todayLabel() }}</p>
     <h1 class="page-title">Counter</h1>
     <p class="page-sub">
-      @if (auth.isOwner()) {
+      @if (auth.isAdmin()) {
         Everything billed and received at the shop today.
       } @else {
         Your bills and receipts for today.

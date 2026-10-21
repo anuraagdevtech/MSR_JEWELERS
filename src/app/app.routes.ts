@@ -1,5 +1,5 @@
 import { Routes } from '@angular/router';
-import { authGuard, guestGuard, homeGuard, ownerGuard } from './core/guards';
+import { adminGuard, analyticsGuard, authGuard, billingGuard, guestGuard, homeGuard } from './core/guards';
 import { Shell } from './layout/shell';
 
 export const routes: Routes = [
@@ -19,38 +19,39 @@ export const routes: Routes = [
       {
         path: 'dashboard',
         title: 'Dashboard · MSR Jewellers',
-        canActivate: [ownerGuard],
+        canActivate: [analyticsGuard],
         loadComponent: () => import('./pages/dashboard/dashboard').then((m) => m.DashboardPage),
       },
       { path: 'reports', pathMatch: 'full', redirectTo: 'reports/sales' },
       {
         path: 'reports/:tab',
         title: 'Reports · MSR Jewellers',
-        canActivate: [ownerGuard],
+        canActivate: [analyticsGuard],
         loadComponent: () => import('./pages/reports/reports').then((m) => m.ReportsPage),
       },
       {
         path: 'customers',
         title: 'Customers · MSR Jewellers',
-        canActivate: [ownerGuard],
+        canActivate: [analyticsGuard],
         loadComponent: () => import('./pages/customers/customers').then((m) => m.CustomersPage),
       },
       {
         path: 'customers/:id',
         title: 'Customer statement · MSR Jewellers',
-        canActivate: [ownerGuard],
+        canActivate: [analyticsGuard],
         loadComponent: () =>
           import('./pages/customer-detail/customer-detail').then((m) => m.CustomerDetailPage),
       },
       {
         path: 'bills',
         title: 'Bills · MSR Jewellers',
-        canActivate: [ownerGuard],
+        canActivate: [analyticsGuard],
         loadComponent: () => import('./pages/bills/bills').then((m) => m.BillsPage),
       },
       {
         path: 'bills/new',
         title: 'New bill · MSR Jewellers',
+        canActivate: [billingGuard],
         loadComponent: () => import('./pages/bill-form/bill-form').then((m) => m.BillFormPage),
       },
       {
@@ -61,24 +62,25 @@ export const routes: Routes = [
       {
         path: 'register',
         title: 'Register · MSR Jewellers',
-        canActivate: [ownerGuard],
+        canActivate: [analyticsGuard],
         loadComponent: () => import('./pages/register/register').then((m) => m.RegisterPage),
       },
       {
         path: 'ledger',
         title: 'Credit & debit ledger · MSR Jewellers',
-        canActivate: [ownerGuard],
+        canActivate: [analyticsGuard],
         loadComponent: () => import('./pages/ledger/ledger').then((m) => m.LedgerPage),
       },
       {
         path: 'counter',
         title: 'Counter · MSR Jewellers',
+        canActivate: [billingGuard],
         loadComponent: () => import('./pages/counter/counter').then((m) => m.CounterPage),
       },
       {
         path: 'settings',
         title: 'Settings · MSR Jewellers',
-        canActivate: [ownerGuard],
+        canActivate: [adminGuard],
         loadComponent: () => import('./pages/settings/settings').then((m) => m.SettingsPage),
       },
     ],

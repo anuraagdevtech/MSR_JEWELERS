@@ -57,7 +57,7 @@ export class BillDetailPage {
     Math.max((this.status()?.paid ?? 0) - Math.min(this.receivedHere(), this.status()?.total ?? 0), 0),
   );
   protected readonly placeOfSupply = computed(() => {
-    const code = this.settings().gstin.slice(0, 2);
+    const code = this.settings().gstin.slice(0, 2) || this.settings().stateCode || '36';
     return STATES[code] ? `${STATES[code]} (${code})` : code || '—';
   });
 

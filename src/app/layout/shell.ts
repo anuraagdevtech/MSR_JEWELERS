@@ -33,6 +33,8 @@ const STAFF_NAV: NavItem[] = [
   { path: '/bills/new', label: 'New bill', icon: 'receipt' },
 ];
 
+const ANALYTICS_NAV = OWNER_NAV.filter((item) => !['/counter', '/settings'].includes(item.path));
+
 /** Sidebar, top bar and shared dialogs around every signed-in page. */
 @Component({
   selector: 'app-shell',
@@ -47,7 +49,7 @@ export class Shell {
   protected readonly auth = inject(AuthService);
   private readonly router = inject(Router);
 
-  protected readonly nav = computed(() => (this.auth.isOwner() ? OWNER_NAV : STAFF_NAV));
+  protected readonly nav = computed(() => this.auth.isAdmin() ? OWNER_NAV : this.auth.canAnalyse() ? ANALYTICS_NAV : STAFF_NAV);
   protected readonly settings = this.store.settings;
 
   protected readonly rates = computed(() => {
@@ -64,7 +66,7 @@ export class Shell {
     const stamp = this.settings().ratesUpdatedAt;
     if (!stamp) return '';
     const date = new Date(stamp);
-    return new Intl.DateTimeFormat('en-IN', { day: '2-digit', month: 'short', hour: 'numeric', minute: '2-digit' }).format(date);
+    return new Intl.DateTimeFormat('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit' }).format(date);
   });
 
   protected readonly ratesStale = computed(() => !this.settings().ratesUpdatedAt.startsWith(this.store.today()));

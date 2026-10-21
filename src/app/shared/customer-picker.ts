@@ -237,7 +237,7 @@ export class CustomerPicker {
 
   /** Balances are for owners only; staff see 0, which hides the figure. */
   protected balanceOf(customerId: string): number {
-    if (!this.auth.isOwner()) return 0;
+    if (!this.auth.isAdmin()) return 0;
     return this.store.customerSummaries().get(customerId)?.balance ?? 0;
   }
 

@@ -8,6 +8,7 @@ import {
   viewChild,
 } from '@angular/core';
 import { Router } from '@angular/router';
+import { AuthService } from '../core/auth.service';
 import { ShopStore } from '../core/store';
 import { initials, phoneDigits } from '../core/format';
 import { Icon } from './icon';
@@ -58,14 +59,14 @@ interface Result {
                 [class.active]="highlighted() === i"
                 [attr.aria-selected]="highlighted() === i"
                 (mousedown)="$event.preventDefault()"
-                (click)="go(['/customers', c.customer.id])"
+                (click)="go(auth.canAnalyse() ? ['/customers', c.customer.id] : ['/bills/new'])"
               >
                 <span class="avatar sm">{{ initialsOf(c.customer.name) }}</span>
                 <span class="result-text">
                   <strong>{{ c.customer.name }}</strong>
                   <small>{{ c.customer.phone | phone }} · {{ c.customer.city }}</small>
                 </span>
-                <small class="result-meta" [class.text-danger]="c.balance > 0">{{ c.balance | balance }}</small>
+                @if (auth.canAnalyse()) { <small class="result-meta" [class.text-danger]="c.balance > 0">{{ c.balance | balance }}</small> }
               </button>
             }
           }
@@ -99,6 +100,7 @@ interface Result {
   `,
 })
 export class GlobalSearch {
+  protected readonly auth = inject(AuthService);
   private readonly store = inject(ShopStore);
   private readonly router = inject(Router);
   private readonly field = viewChild<ElementRef<HTMLInputElement>>('field');
@@ -144,7 +146,7 @@ export class GlobalSearch {
   });
 
   private readonly results = computed<Result[]>(() => [
-    ...this.customers().map((c) => ({ kind: 'customer' as const, id: c.customer.id, link: ['/customers', c.customer.id] })),
+    ...this.customers().map((c) => ({ kind: 'customer' as const, id: c.customer.id, link: this.auth.canAnalyse() ? ['/customers', c.customer.id] : ['/bills/new'] })),
     ...this.bills().map((b) => ({ kind: 'bill' as const, id: b.bill.id, link: ['/bills', b.bill.id] })),
   ]);
 

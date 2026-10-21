@@ -4,7 +4,7 @@
       <span class="mark" aria-hidden="true">MSR</span>
       <div>
         <p class="shop">MSR Jewellers</p>
-        <p class="tag">Gold · Diamond · Silver</p>
+        <p class="tag">Gandhinagar, Hyderabad · Gold · Diamond · Silver</p>
       </div>
     </div>
 
@@ -17,19 +17,21 @@
         @switch (view()) {
           @case ('password') {
             <h1 id="login-title">Sign in</h1>
-            <p class="lead">Owners and counter staff only. You'll also need the code from your authenticator app.</p>
+            <p class="lead">{{ auth.cloud ? 'Admin, Billing and Analytics accounts. Have your authenticator code ready.' : 'Try the Admin, Billing and Analytics profiles with the local demo accounts below.' }}</p>
             @if (auth.notice(); as notice) {
               <p class="notice notice-info"><app-icon name="lock" [size]="16" /> {{ notice }}</p>
             }
             <form class="stack" (ngSubmit)="signIn()" novalidate>
               <div class="field">
-                <label for="login-email">Email</label>
-                <input id="login-email" class="input input-lg" type="email" name="email" autocomplete="username" autofocus [(ngModel)]="email" />
+                <label for="login-email">Username or email</label>
+                <input id="login-email" class="input input-lg" type="text" name="email" autocomplete="username" autofocus [(ngModel)]="email" />
               </div>
               <div class="field">
                 <div class="label-row">
                   <label for="login-password">Password</label>
-                  <button type="button" class="link-btn" (click)="view.set('forgot'); error.set(null)">Forgot password?</button>
+                  @if (auth.cloud) {
+                    <button type="button" class="link-btn" (click)="view.set('forgot'); error.set(null)">Forgot password?</button>
+                  }
                 </div>
                 <input id="login-password" class="input input-lg" type="password" name="password" autocomplete="current-password" [(ngModel)]="password" />
               </div>
@@ -40,6 +42,14 @@
                 {{ busy() ? 'Signing in…' : 'Continue' }}
               </button>
             </form>
+            @if (!auth.cloud) {
+              <div class="demo-accounts">
+                <p class="hint">Local demo credentials — these do not grant access to a hosted database.</p>
+                @for (account of demoAccounts; track account.username) {
+                  <p><strong>{{ account.username }}</strong> <code>{{ account.password }}</code></p>
+                }
+              </div>
+            }
           }
           @case ('forgot') {
             <h1 id="login-title">Reset your password</h1>
@@ -94,7 +104,7 @@
           </button>
           <button type="button" class="btn btn-ghost btn-block" (click)="useAnotherAccount()">Use a different account</button>
         </form>
-        <p class="help">Lost your phone? Another owner can reset your two-factor login from the Supabase dashboard.</p>
+        <p class="help">Lost your phone? An admin can reset your two-factor login from the Supabase dashboard.</p>
       }
 
       @case ('enrol') {
@@ -143,7 +153,7 @@
       @case ('no-access') {
         <h1 id="login-title">Waiting for access</h1>
         <p class="lead">
-          You're signed in as <strong>{{ auth.email() }}</strong> with two-factor on, but an owner hasn't given you access yet.
+          You're signed in as <strong>{{ auth.email() }}</strong> with two-factor on, but an admin hasn't given you access yet.
           Ask them to open <em>Settings → Team &amp; access</em> and choose your role.
         </p>
         @if (error(); as problem) {
@@ -177,6 +187,6 @@
       }
     }
 
-    <p class="secure"><app-icon name="shield" [size]="14" /> Protected by two-factor sign-in</p>
+    <p class="secure"><app-icon name="shield" [size]="14" /> {{ auth.cloud ? 'Protected by two-factor sign-in' : 'Local preview · sample accounts only' }}</p>
   </section>
 </main>

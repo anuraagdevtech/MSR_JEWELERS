@@ -3,8 +3,8 @@
   @let s = status();
   @let c = customer();
 
-  <a class="back-link no-print" [routerLink]="auth.isOwner() ? '/bills' : '/counter'">
-    <app-icon name="arrowLeft" [size]="16" /> {{ auth.isOwner() ? 'Bills' : 'Counter' }}
+  <a class="back-link no-print" [routerLink]="auth.canAnalyse() ? '/bills' : '/counter'">
+    <app-icon name="arrowLeft" [size]="16" /> {{ auth.canAnalyse() ? 'Bills' : 'Counter' }}
   </a>
 
   <header class="page-head no-print">
@@ -12,7 +12,7 @@
       <h1 class="page-title">{{ b.billNo }}</h1>
       <p class="page-sub">
         {{ b.date | day }} ·
-        @if (c && auth.isOwner()) {
+        @if (c && auth.canAnalyse()) {
           <a [routerLink]="['/customers', c.id]">{{ c.name }}</a>
         } @else if (c) {
           {{ c.name }}
@@ -20,7 +20,7 @@
       </p>
     </div>
     <div class="page-actions">
-      @if (auth.isOwner()) {
+      @if (auth.isAdmin()) {
         <button type="button" class="btn btn-ghost btn-danger" (click)="remove()">
           <app-icon name="trash" [size]="16" /> Delete
         </button>
@@ -28,7 +28,7 @@
       <button type="button" class="btn btn-secondary" (click)="printInvoice()">
         <app-icon name="printer" [size]="16" /> Print
       </button>
-      @if ((s?.balance ?? 0) > 0) {
+      @if (auth.canBill() && (s?.balance ?? 0) > 0) {
         <button type="button" class="btn btn-primary" (click)="collect()">
           <app-icon name="wallet" [size]="16" /> Record payment
         </button>
@@ -43,7 +43,7 @@
           <p class="inv-shop">{{ settings().shopName }}</p>
           <p class="inv-tag">{{ settings().tagline }}</p>
           <p class="inv-addr">{{ settings().address }}</p>
-          <p class="inv-addr">Ph {{ settings().phone }} · GSTIN {{ settings().gstin }}</p>
+          <p class="inv-addr">@if (settings().phone) { Ph {{ settings().phone }} } @if (settings().gstin) { · GSTIN {{ settings().gstin }} }</p>
         </div>
         <div class="inv-meta">
           <p class="inv-title">Tax invoice</p>
@@ -175,7 +175,7 @@
         } @else {
           <p class="muted-line">No payment recorded against this bill yet.</p>
         }
-        @if (adjustedFromAccount() > 0 && auth.isOwner()) {
+        @if (adjustedFromAccount() > 0 && auth.canAnalyse()) {
           <p class="muted-line">{{ adjustedFromAccount() | inr }} adjusted from other payments on the customer's account.</p>
         }
         <dl class="inv-totals settle">
@@ -205,7 +205,7 @@
           <div><dt>Days since billing</dt><dd>{{ s?.daysOpen ?? 0 }}</dd></div>
         </dl>
       </section>
-      @if (c && auth.isOwner()) {
+      @if (c && auth.canAnalyse()) {
         <section class="card">
           <h2 class="card-title">Customer</h2>
           <p class="side-name"><a [routerLink]="['/customers', c.id]">{{ c.name }}</a></p>
@@ -219,11 +219,11 @@
   <div class="card empty-state">
     <app-icon name="receipt" [size]="36" />
     <strong>Bill not found</strong>
-    @if (auth.isOwner()) {
+    @if (auth.isAdmin()) {
       It may have been deleted.
     } @else {
-      Counter staff can open bills they made today or yesterday. Ask an owner for older bills.
+      Billing staff can open bills they made today or yesterday. Ask an admin for older bills.
     }
-    <a class="btn btn-secondary btn-sm" [routerLink]="auth.isOwner() ? '/bills' : '/counter'">Go back</a>
+    <a class="btn btn-secondary btn-sm" [routerLink]="auth.canAnalyse() ? '/bills' : '/counter'">Go back</a>
   </div>
 }

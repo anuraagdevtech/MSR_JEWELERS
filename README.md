@@ -1,26 +1,27 @@
 # MSR Jewellers
 
-Counter software for a jewellery shop: customers, GST tax invoices, payments, a credit/debit
+Counter software for **MSR Jewellers, Gandhinagar, Hyderabad, Telangana**: customers, GST tax invoices, payments, a credit/debit
 khata, and business reports. Built with Angular 22 (standalone components, signals,
 zoneless). It runs in two modes:
 
-- **Hosted (cloud) mode**: data lives in a Supabase database; owners and counter staff sign in
+- **Supabase mode** (hosted or local): data lives in PostgreSQL; Admin, Billing and Analytics sign in
   with a password **and** an authenticator-app code (two-factor), from the shop PC or a phone.
-- **Local mode**: no login; data stays in one browser. Used for trying the app and for development.
+- **Browser demo**: dummy logins let you try each role; sample data stays in one browser.
+  This is a preview, not secure storage for real customer records.
 
 ## What's inside
 
 | Page | Who | What it does |
 | --- | --- | --- |
-| **Dashboard** | Owners | Sales (debit) and collections (credit) with change vs the previous period, outstanding and overdue dues, 12-month billed-vs-collected chart, dues by age, best sellers, collections by mode, sales by category, highest dues with WhatsApp reminders, recent activity. |
-| **Reports** | Owners | **Sales** (monthly sales, making charges earned, gold out vs old gold in, busiest days, metal & purity mix) · **Best sellers** (top designs by value, pieces or weight; categories; CSV) · **Customers** (new vs returning buyers, repeat rate, top customers, cities, big spenders to call back) · **Collections** (collection ratio, days of sales outstanding, time to settle, aged receivables) · **GST** (month-wise CGST/SGST, HSN summary for GSTR-1, B2B invoices, CSV exports). |
-| **Customers** | Owners | Every account with lifetime billed, paid and khata balance (`Dr` = customer owes, `Cr` = advance). |
-| **Customer statement** | Owners | Running-balance statement, bills, payments, 12-month chart, print and CSV. |
-| **Bills / Credit & debit** | Owners | All invoices with status; day book of every debit and credit. |
-| **Register** | Owners | The counter's whiteboard book on screen: S.No, customer, phone, address, c/o name and phone, slip no. and date, gold credit and debit in grams, cash credit and debit, notes — with column totals, each customer's running gold and cash balance, a balances-per-customer view, print and CSV. |
-| **Counter** | Everyone | Quick actions, today's bills and receipts, cash in the drawer for the end-of-day tally. |
-| **New bill / Record payment** | Everyone | GST invoice with purity-wise rates, making, stones, HUID, old-gold exchange and payment at billing. |
-| **Settings** | Owners | Board rates, shop and invoice details, team access, theme, backup / restore. |
+| **Dashboard** | Admin, Analytics | Sales (debit) and collections (credit) with change vs the previous period, outstanding and overdue dues, 12-month billed-vs-collected chart, dues by age, best sellers, collections by mode, sales by category, highest dues with WhatsApp reminders, recent activity. |
+| **Reports** | Admin, Analytics | **Sales** (monthly sales, making charges earned, gold out vs old gold in, busiest days, metal & purity mix) · **Best sellers** (top designs by value, pieces or weight; categories; CSV) · **Customers** (new vs returning buyers, repeat rate, top customers, cities, big spenders to call back) · **Collections** (collection ratio, days of sales outstanding, time to settle, aged receivables) · **GST** (month-wise CGST/SGST, HSN summary for GSTR-1, B2B invoices, CSV exports). |
+| **Customers** | Admin, Analytics | Every account with lifetime billed, paid and khata balance (`Dr` = customer owes, `Cr` = advance). |
+| **Customer statement** | Admin, Analytics | Running-balance statement, bills, payments, 12-month chart, print and CSV. |
+| **Bills / Credit & debit** | Admin, Analytics | All invoices with status; day book of every debit and credit. |
+| **Register** | Admin, Analytics | The counter's whiteboard book on screen: S.No, customer, phone, address, c/o name and phone, slip no. and date, gold credit and debit in grams, cash credit and debit, notes — with column totals, each customer's running gold and cash balance, a balances-per-customer view, print and CSV. |
+| **Counter** | Admin, Billing | Quick actions, today's bills and receipts, cash in the drawer for the end-of-day tally. |
+| **New bill / Record payment** | Admin, Billing | GST invoice with purity-wise rates, making, stones, HUID, old-gold exchange and payment at billing. |
+| **Settings** | Admin | Board rates, shop and invoice details, team access, theme, backup / restore. |
 
 Balances: a payment tagged to a bill settles that bill first; untagged payments and
 overpayments clear the oldest dues first; anything left over is held as an advance.
@@ -37,10 +38,12 @@ customer). It does not touch GST bills or receipts, so nothing is counted twice.
 - **Enforced by the database, not just the screens.** Every table has row-level security that
   requires the two-factor level (`aal2`) and a role. Someone with only a stolen password gets
   nothing back, even by calling the database directly. See `supabase/schema.sql`.
-- **Roles.** *Owners* see and manage everything. *Counter staff* can look up customers, make bills
+- **Roles.** **Admin** manages the shop and team. **Analytics** reads all dashboards, reports,
+  customers, bills and register balances, and can print/export reports; it cannot change records.
+  **Billing** can look up customers, make bills
   and take payments; they see only the bills and receipts they entered today or yesterday, never
   balances, dashboards, reports, the register or settings, and cannot delete anything. New sign-ups
-  get no access until an owner assigns a role. Nobody can change their own role.
+  get no access until an admin assigns a role. Nobody can change their own role.
 - **Bill and receipt numbers are issued by the database**, so two counters saving at once never
   clash.
 - **Auto sign-out** after 30 minutes without a click or keypress.
@@ -63,7 +66,7 @@ About 20 minutes, once. You need a free GitHub account with this repository in i
 5. **Project Settings → API**: note the **Project URL** and the **anon / publishable key**.
    Never use the `service_role` / secret key in the app.
 
-### 2. Create the first owner
+### 2. Create the first Admin
 
 1. **Authentication → Users → Add user → Create new user**: enter your email and a strong password,
    tick **Auto Confirm User**.
@@ -71,7 +74,7 @@ About 20 minutes, once. You need a free GitHub account with this repository in i
 
    ```sql
    update public.profiles
-   set role = 'owner', full_name = 'Your Name'
+   set role = 'admin', full_name = 'Your Name'
    where email = 'you@example.com';
    ```
 
@@ -94,13 +97,13 @@ About 20 minutes, once. You need a free GitHub account with this repository in i
 ### 4. First sign-in and your team
 
 1. Open your address, sign in, scan the QR code with an authenticator app, and type the code.
-2. The app opens with **sample data** so you can explore. When ready, go to **Settings → Your data**
-   and **Erase all** (or **Restore backup** to bring in data from local mode).
+2. A new hosted database opens empty. Use **Settings → Your data → Load sample data** to explore,
+   or **Restore backup** to bring in your browser data. Erase sample records before starting real billing.
 3. To add a person: Supabase **Authentication → Users → Add user**. They sign in and set up their
-   authenticator; you then choose **Owner** or **Counter staff** in **Settings → Team & access**.
+   authenticator; you then choose **Admin**, **Billing** or **Analytics** in **Settings → Team & access**.
 
 **Lost phone?** In Supabase, **Authentication → Users →** the person **→ MFA factors → delete**.
-At their next sign-in they scan a new QR code. Keep at least two owners so one can help the other.
+At their next sign-in they scan a new QR code. Keep at least two Admin accounts so one can help the other.
 
 ## Running it on your computer
 
@@ -111,9 +114,58 @@ npm install
 npm start
 ```
 
-Open http://localhost:4200. Without Supabase settings this is **local mode**. To run against
+Open http://localhost:4200. Without Supabase settings this is the **browser demo** with the accounts below. To run against
 your Supabase project, copy `.env.example` to `.env` and fill in the two values first.
 `npm run build` produces the static site in `dist/frontend/browser`.
+
+## Demo usernames and passwords
+
+These accounts work in the browser demo and the local Supabase development database:
+
+| Username | Email alias | Password | Access |
+| --- | --- | --- | --- |
+| `admin` | `admin@msr.local` | `AdminDemo!2026` | All records, settings and team management |
+| `billing` | `billing@msr.local` | `BillingDemo!2026` | Customers, new bills, payments and own recent entries |
+| `analytics` | `analytics@msr.local` | `AnalyticsDemo!2026` | Read-only dashboards, customers, bills and register |
+
+Supabase also requires real authenticator-app enrolment and a code. The browser demo does
+not simulate two-factor security. Dummy accounts are never created in a hosted project;
+use individual real emails and unique passwords there.
+
+## Real local Supabase
+
+On the supported native runtime (including Apple silicon), run:
+
+```bash
+npm ci
+npm run supabase:setup
+npm run supabase:sample-data
+npm run start:supabase
+```
+
+Open **http://localhost:4311** and sign in with a dummy account above. On first sign-in,
+scan the authenticator QR code and enter its current code. The setup command prints the
+local **Studio** address as well. Native runtime services use ports assigned by the CLI.
+The sample-data command only populates an empty local database and never replaces records.
+
+Local keys are generated in the ignored `.env.supabase.local` file with restricted file
+permissions. The browser receives only the public key. The setup and sample-data scripts
+refuse hosted database URLs.
+
+```bash
+npm test                  # Date formatting, roles, migration and database policies
+npm run test:supabase     # Real Auth, TOTP, PostgREST, concurrent billing and access tests
+npm run supabase:stop     # Stop services and keep the database for next time
+```
+
+The integration suite uses disposable test users and rows, cleans them up, and keeps sample
+or shop records. Existing `owner` and `staff` accounts migrate to `admin` and `billing`.
+For an existing hosted project, run the updated `supabase/schema.sql` before deploying this
+version. The matching initial migration is in `supabase/migrations/` for CLI workflows.
+
+All calendar dates, activity dates, rate timestamps and monthly chart labels include a year.
+Shop settings default to Telangana state code **36**. Enter the shop's real GSTIN and phone
+in Settings; no registration or contact number has been invented.
 
 ## Code map
 

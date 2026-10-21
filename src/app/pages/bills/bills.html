@@ -7,7 +7,9 @@
     <button type="button" class="btn btn-secondary" (click)="exportCsv()">
       <app-icon name="download" [size]="16" /> Export
     </button>
-    <a class="btn btn-primary" routerLink="/bills/new"><app-icon name="plus" [size]="16" /> New bill</a>
+    @if (auth.canBill()) {
+      <a class="btn btn-primary" routerLink="/bills/new"><app-icon name="plus" [size]="16" /> New bill</a>
+    }
   </div>
 </header>
 

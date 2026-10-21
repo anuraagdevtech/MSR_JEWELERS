@@ -8,6 +8,7 @@ import { ALL_PURITIES, deriveRates, purityLabel } from '../../core/calc';
 import { todayISO } from '../../core/dates';
 import { downloadFile } from '../../core/csv';
 import { AuthService } from '../../core/auth.service';
+import { AccountRole, ROLE_LABELS, normaliseRole } from '../../core/roles';
 import { supabase } from '../../core/supabase';
 import { Icon } from '../../shared/icon';
 import { InrPipe } from '../../shared/pipes';
@@ -18,7 +19,7 @@ interface TeamMember {
   userId: string;
   email: string;
   fullName: string;
-  role: 'owner' | 'staff' | 'pending';
+  role: AccountRole;
   isMe: boolean;
 }
 
@@ -125,6 +126,10 @@ export class SettingsPage {
       this.ui.toast('Shop name cannot be empty.', 'error');
       return;
     }
+    if (!/^\d{2}$/.test(p.stateCode ?? '')) {
+      this.ui.toast('Enter the two-digit state code, e.g. 36 for Telangana.', 'error');
+      return;
+    }
     const saved = await this.run(
       () =>
         this.store.updateSettings({
@@ -196,7 +201,7 @@ export class SettingsPage {
         userId: row.user_id,
         email: row.email,
         fullName: row.full_name ?? '',
-        role: row.role,
+        role: normaliseRole(row.role),
         isMe: row.user_id === this.auth.profile()?.userId,
       })),
     );
@@ -204,12 +209,12 @@ export class SettingsPage {
 
   protected async setRole(member: TeamMember, role: TeamMember['role']): Promise<void> {
     if (!supabase || member.role === role) return;
-    if (role === 'owner' && !confirm(`Make ${member.email} an owner? Owners see all accounts and can delete records.`)) {
+    if (role === 'admin' && !confirm(`Make ${member.email} an admin? Admins see all accounts and can delete records.`)) {
       await this.loadTeam();
       return;
     }
     const db = supabase;
-    const label = role === 'pending' ? 'Access removed' : `${member.email} is now ${role === 'owner' ? 'an owner' : 'counter staff'}`;
+    const label = role === 'pending' ? 'Access removed' : `${member.email} is now ${ROLE_LABELS[role]}`;
     await this.run(async () => {
       const { error } = await db.from('profiles').update({ role }).eq('user_id', member.userId);
       if (error) throw new Error(error.message);

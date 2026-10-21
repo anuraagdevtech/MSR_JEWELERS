@@ -131,6 +131,7 @@ export function billFromRow(row: BillRow): Bill {
     gstPercent: Number(row.gst_percent) || 0,
     notes: opt(row.notes),
     createdAt: toLocalStamp(row.created_at),
+    createdBy: row.created_by ?? undefined,
   };
 }
 
@@ -162,6 +163,7 @@ export function paymentFromRow(row: PaymentRow): Payment {
     oldGold: row.old_gold ?? undefined,
     notes: opt(row.notes),
     createdAt: toLocalStamp(row.created_at),
+    createdBy: row.created_by ?? undefined,
   };
 }
 

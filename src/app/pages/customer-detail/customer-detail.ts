@@ -1,3 +1,4 @@
+import { AuthService } from '../../core/auth.service';
 import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { ShopStore } from '../../core/store';
@@ -27,6 +28,7 @@ interface StatementRow extends LedgerEntry {
   styleUrl: './customer-detail.scss',
 })
 export class CustomerDetailPage {
+  protected readonly auth = inject(AuthService);
   protected readonly store = inject(ShopStore);
   protected readonly ui = inject(UiService);
 

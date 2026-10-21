@@ -211,9 +211,8 @@ export const formatGramsShort = (value: number) =>
 
 /** Short axis labels ("Apr", or "Apr 26" when the span crosses a year) and full labels. */
 export function monthLabels(months: string[]): { short: string[]; full: string[] } {
-  const multiYear = months.length > 12;
   return {
-    short: months.map((m) => (multiYear ? `${formatMonth(m)} ${m.slice(2, 4)}` : formatMonth(m))),
+    short: months.map((m) => formatMonth(m, true)),
     full: months.map((m) => formatMonth(m, true)),
   };
 }

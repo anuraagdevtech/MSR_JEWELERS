@@ -33,20 +33,26 @@
       </div>
     </div>
     <div class="page-actions no-print">
-      <a class="btn btn-primary" routerLink="/bills/new" [queryParams]="{ customer: c.id }">
-        <app-icon name="plus" [size]="16" /> New bill
-      </a>
-      <button type="button" class="btn btn-secondary" (click)="collect()">
-        <app-icon name="wallet" [size]="16" /> Record payment
-      </button>
-      @if (whatsapp(); as link) {
+      @if (auth.canBill()) {
+        <a class="btn btn-primary" routerLink="/bills/new" [queryParams]="{ customer: c.id }">
+          <app-icon name="plus" [size]="16" /> New bill
+        </a>
+      }
+      @if (auth.canBill()) {
+        <button type="button" class="btn btn-secondary" (click)="collect()">
+          <app-icon name="wallet" [size]="16" /> Record payment
+        </button>
+      }
+      @if (auth.isAdmin() && whatsapp(); as link) {
         <a class="btn btn-secondary" [href]="link" target="_blank" rel="noopener">
           <app-icon name="message" [size]="16" /> Remind
         </a>
       }
-      <button type="button" class="icon-btn" (click)="edit()" aria-label="Edit customer" title="Edit customer">
-        <app-icon name="edit" />
-      </button>
+      @if (auth.canBill()) {
+        <button type="button" class="icon-btn" (click)="edit()" aria-label="Edit customer" title="Edit customer">
+          <app-icon name="edit" />
+        </button>
+      }
     </div>
   </header>
 
@@ -231,7 +237,9 @@
                     <td><app-status-chip [status]="row.status" /></td>
                     <td class="num">
                       @if ((row.status?.balance ?? 0) > 0) {
-                        <button type="button" class="btn btn-secondary btn-xs" (click)="collect(row.bill.id)">Collect</button>
+                        @if (auth.canBill()) {
+                          <button type="button" class="btn btn-secondary btn-xs" (click)="collect(row.bill.id)">Collect</button>
+                        }
                       }
                     </td>
                   </tr>
@@ -291,15 +299,17 @@
                     </td>
                     <td class="num strong">{{ row.payment.amount | inr }}</td>
                     <td class="num">
-                      <button
-                        type="button"
-                        class="icon-btn sm btn-danger"
-                        (click)="removePayment(row.payment)"
-                        [attr.aria-label]="'Delete receipt ' + row.payment.receiptNo"
-                        title="Delete receipt"
-                      >
-                        <app-icon name="trash" [size]="15" />
-                      </button>
+                      @if (auth.isAdmin()) {
+                        <button
+                          type="button"
+                          class="icon-btn sm btn-danger"
+                          (click)="removePayment(row.payment)"
+                          [attr.aria-label]="'Delete receipt ' + row.payment.receiptNo"
+                          title="Delete receipt"
+                        >
+                          <app-icon name="trash" [size]="15" />
+                        </button>
+                      }
                     </td>
                   </tr>
                 }
@@ -310,7 +320,9 @@
           <div class="empty-state">
             <app-icon name="wallet" [size]="32" />
             <strong>No payments yet</strong>
-            <button type="button" class="btn btn-primary btn-sm" (click)="collect()">Record a payment</button>
+            @if (auth.canBill()) {
+              <button type="button" class="btn btn-primary btn-sm" (click)="collect()">Record a payment</button>
+            }
           </div>
         }
       }

@@ -16,9 +16,10 @@ import {
   ShopSettings,
 } from './models';
 import { allocatePayments, computeBillTotals } from './calc';
-import { daysBetween, financialYearLabel, todayISO } from './dates';
+import { addDays, daysBetween, financialYearLabel, todayISO } from './dates';
 import { formatGrams, formatINR } from './format';
 import { defaultSettings, emptyData, generateDemoData } from './seed';
+import { migrateShopProfile } from './shop-profile';
 import { AuthService } from './auth.service';
 import { CLOUD } from './env';
 import { friendlyError, supabase } from './supabase';
@@ -83,7 +84,7 @@ function withDefaults(settings: Partial<ShopSettings> | null | undefined): ShopS
   const merged = { ...defaults, ...settings, rates: { ...defaults.rates, ...settings?.rates } };
   // Earlier builds saved the US spelling as the default shop name.
   if (merged.shopName === 'MSR Jewelers') merged.shopName = defaults.shopName;
-  return merged;
+  return migrateShopProfile({ ...merged, stateCode: settings?.stateCode });
 }
 
 /** Fills in anything a backup from an older build is missing. */
@@ -142,10 +143,12 @@ export class ShopStore {
   readonly storageError = signal<string | null>(null);
   readonly today = signal(todayISO());
 
-  readonly customers = computed(() => this.state().customers);
-  readonly bills = computed(() => this.state().bills);
-  readonly payments = computed(() => this.state().payments);
-  readonly registerEntries = computed(() => this.state().registerEntries);
+  readonly customers = computed(() => this.auth.stage() !== 'ready' ? [] : this.state().customers.map((c) =>
+    this.auth.canAnalyse() ? c : { ...c, openingBalance: 0 },
+  ));
+  readonly bills = computed(() => this.auth.stage() !== 'ready' ? [] : this.state().bills.filter((b) => this.visibleAtCounter(b)));
+  readonly payments = computed(() => this.auth.stage() !== 'ready' ? [] : this.state().payments.filter((p) => this.visibleAtCounter(p)));
+  readonly registerEntries = computed(() => this.auth.canAnalyse() ? this.state().registerEntries : []);
   readonly settings = computed(() => this.state().settings);
 
   readonly customerById = computed(() => new Map(this.customers().map((c) => [c.id, c])));
@@ -361,6 +364,18 @@ export class ShopStore {
   private channel: RealtimeChannel | null = null;
   private loading: Promise<void> | null = null;
   private lastSync = 0;
+  private generation = 0;
+
+  private visibleAtCounter(record: Bill | Payment): boolean {
+    if (this.auth.canAnalyse()) return true;
+    return record.createdBy === this.auth.profile()?.userId && record.createdAt.slice(0, 10) >= addDays(this.today(), -1);
+  }
+
+  private requirePermission(kind: 'admin' | 'billing'): void {
+    if (this.auth.stage() !== 'ready' || !(kind === 'admin' ? this.auth.isAdmin() : this.auth.canBill())) {
+      throw new Error('This profile cannot change these records. Ask an admin.');
+    }
+  }
 
   constructor() {
     // Counter PCs stay open overnight: roll "today" forward and catch up whenever the tab
@@ -386,7 +401,12 @@ export class ShopStore {
 
     effect(() => {
       const ready = this.auth.stage() === 'ready';
-      untracked(() => (ready ? void this.load() : this.unload()));
+      const user = this.auth.profile()?.userId;
+      const role = this.auth.role();
+      untracked(() => {
+        this.unload();
+        if (ready && user && role) void this.load();
+      });
     });
   }
 
@@ -395,25 +415,30 @@ export class ShopStore {
   /** Fetches the whole book the signed-in user is allowed to see. */
   load(): Promise<void> {
     if (!supabase) return Promise.resolve();
-    this.loading ??= this.fetchEverything().finally(() => (this.loading = null));
-    return this.loading;
+    if (this.loading) return this.loading;
+    const request = this.fetchEverything().finally(() => {
+      if (this.loading === request) this.loading = null;
+    });
+    this.loading = request;
+    return request;
   }
 
   private async fetchEverything(): Promise<void> {
     const db = supabase!;
+    const generation = this.generation;
     try {
-      const owner = this.auth.isOwner();
+      const canAnalyse = this.auth.canAnalyse();
       const [settingsRow, customerRows, openingRows, billRows, paymentRows, registerRows] =
         await Promise.all([
           db.from('shop_settings').select('data').eq('id', 1).maybeSingle(),
           this.fetchAll<CustomerRow>('customers'),
-          owner ? this.fetchAll<OpeningRow>('customer_openings', 'customer_id') : Promise.resolve([]),
+          canAnalyse ? this.fetchAll<OpeningRow>('customer_openings', 'customer_id') : Promise.resolve([]),
           this.fetchAll<BillRow>('bills'),
           this.fetchAll<PaymentRow>('payments'),
-          // The register is nothing but balances, so it is for owners only.
-          owner ? this.fetchAll<RegisterEntryRow>('register_entries') : Promise.resolve([]),
+          canAnalyse ? this.fetchAll<RegisterEntryRow>('register_entries') : Promise.resolve([]),
         ]);
       if (settingsRow.error) throw settingsRow.error;
+      if (generation !== this.generation || this.auth.stage() !== 'ready') return;
       const openings = new Map(openingRows.map((o) => [o.customer_id, Number(o.amount) || 0]));
       const settings = withDefaults(settingsRow.data?.data as Partial<ShopSettings> | undefined);
       this.state.set({
@@ -430,7 +455,7 @@ export class ShopStore {
       this.loaded.set(true);
       this.subscribe();
     } catch (error) {
-      this.loadError.set(friendlyError(error));
+      if (generation === this.generation) this.loadError.set(friendlyError(error));
     }
   }
 
@@ -449,6 +474,8 @@ export class ShopStore {
   }
 
   private unload(): void {
+    this.generation++;
+    this.loading = null;
     if (this.channel) void supabase?.removeChannel(this.channel);
     this.channel = null;
     this.loaded.set(false);
@@ -552,9 +579,10 @@ export class ShopStore {
   // ---- Customers ---------------------------------------------------------------------------
 
   async addCustomer(input: CustomerInput): Promise<Customer> {
+    this.requirePermission('billing');
     const customer: Customer = {
       ...input,
-      openingBalance: this.auth.isOwner() ? input.openingBalance : 0,
+      openingBalance: this.auth.isAdmin() ? input.openingBalance : 0,
       id: uid('c'),
       createdAt: todayISO(),
     };
@@ -573,18 +601,19 @@ export class ShopStore {
   }
 
   async updateCustomer(id: string, input: CustomerInput): Promise<void> {
+    this.requirePermission('billing');
     const current = this.customerById().get(id);
     if (!current) return;
     const next: Customer = {
       ...current,
       ...input,
-      openingBalance: this.auth.isOwner() ? input.openingBalance : current.openingBalance,
+      openingBalance: this.auth.isAdmin() ? input.openingBalance : current.openingBalance,
     };
     if (supabase) {
       const { id: _id, created_on: _on, created_by: _by, ...fields } = customerToRow(next, this.userId());
       const { error } = await supabase.from('customers').update(fields).eq('id', id);
       if (error) this.fail(error);
-      if (this.auth.isOwner() && next.openingBalance !== current.openingBalance) {
+      if (this.auth.isAdmin() && next.openingBalance !== current.openingBalance) {
         const { error: openingError } = next.openingBalance
           ? await supabase.from('customer_openings').upsert({ customer_id: id, amount: next.openingBalance })
           : await supabase.from('customer_openings').delete().eq('customer_id', id);
@@ -603,6 +632,7 @@ export class ShopStore {
   }
 
   async deleteCustomer(id: string): Promise<boolean> {
+    this.requirePermission('admin');
     if (!this.canDeleteCustomer(id)) return false;
     if (supabase) {
       const { error } = await supabase.from('customers').delete().eq('id', id);
@@ -615,6 +645,7 @@ export class ShopStore {
   // ---- Bills & payments --------------------------------------------------------------------
 
   async createBill(input: BillInput, paymentsAtBilling: PaymentInput[]): Promise<Bill> {
+    this.requirePermission('billing');
     const drafts = paymentsAtBilling.filter((p) => p.amount > 0);
     if (supabase) {
       const { data, error } = await supabase.rpc('create_bill', {
@@ -636,10 +667,11 @@ export class ShopStore {
     const bill: Bill = {
       ...input,
       id: uid('b'),
-      billNo: this.nextNumber(this.settings().billPrefix, input.date, this.bills().map((b) => b.billNo)),
+      billNo: this.nextNumber(this.settings().billPrefix, input.date, this.state().bills.map((b) => b.billNo)),
       createdAt: nowStamp(),
+      createdBy: this.userId(),
     };
-    const receiptNos = this.payments().map((p) => p.receiptNo);
+    const receiptNos = this.state().payments.map((p) => p.receiptNo);
     const payments: Payment[] = [];
     for (const draft of drafts) {
       const receiptNo = this.nextNumber(this.settings().receiptPrefix, draft.date, receiptNos);
@@ -651,6 +683,7 @@ export class ShopStore {
         customerId: bill.customerId,
         billId: bill.id,
         createdAt: nowStamp(),
+        createdBy: this.userId(),
       });
     }
     this.patch((d) => ({ ...d, bills: [...d.bills, bill], payments: [...d.payments, ...payments] }));
@@ -659,6 +692,7 @@ export class ShopStore {
 
   /** Removes a bill together with every payment recorded against it. */
   async deleteBill(id: string): Promise<void> {
+    this.requirePermission('admin');
     if (supabase) {
       const { error } = await supabase.from('bills').delete().eq('id', id);
       if (error) this.fail(error);
@@ -667,6 +701,7 @@ export class ShopStore {
   }
 
   async addPayment(customerId: string, input: PaymentInput): Promise<Payment> {
+    this.requirePermission('billing');
     if (supabase) {
       const { data, error } = await supabase.rpc('add_payment', {
         p_payment: { ...input, id: uid('p'), customerId },
@@ -683,15 +718,17 @@ export class ShopStore {
       receiptNo: this.nextNumber(
         this.settings().receiptPrefix,
         input.date,
-        this.payments().map((p) => p.receiptNo),
+        this.state().payments.map((p) => p.receiptNo),
       ),
       createdAt: nowStamp(),
+      createdBy: this.userId(),
     };
     this.patch((d) => ({ ...d, payments: [...d.payments, payment] }));
     return payment;
   }
 
   async deletePayment(id: string): Promise<void> {
+    this.requirePermission('admin');
     if (supabase) {
       const { error } = await supabase.from('payments').delete().eq('id', id);
       if (error) this.fail(error);
@@ -707,12 +744,13 @@ export class ShopStore {
 
   /** The next bill number as far as this screen knows; the server assigns the final one. */
   previewBillNo(date: string): string {
-    return this.nextNumber(this.settings().billPrefix, date, this.bills().map((b) => b.billNo));
+    return this.nextNumber(this.settings().billPrefix, date, this.state().bills.map((b) => b.billNo));
   }
 
   // ---- Register ----------------------------------------------------------------------------
 
   async addRegisterEntry(input: RegisterEntryInput): Promise<RegisterEntry> {
+    this.requirePermission('admin');
     const entry: RegisterEntry = { ...normaliseEntry(input), id: uid('r'), createdAt: nowStamp() };
     if (supabase) {
       const { error } = await supabase
@@ -725,6 +763,7 @@ export class ShopStore {
   }
 
   async updateRegisterEntry(id: string, input: RegisterEntryInput): Promise<void> {
+    this.requirePermission('admin');
     const current = this.registerEntries().find((e) => e.id === id);
     if (!current) return;
     const next: RegisterEntry = { ...current, ...normaliseEntry(input) };
@@ -740,6 +779,7 @@ export class ShopStore {
   }
 
   async deleteRegisterEntry(id: string): Promise<void> {
+    this.requirePermission('admin');
     if (supabase) {
       const { error } = await supabase.from('register_entries').delete().eq('id', id);
       if (error) this.fail(error);
@@ -761,6 +801,7 @@ export class ShopStore {
   // ---- Settings & data ---------------------------------------------------------------------
 
   async updateSettings(patch: Partial<ShopSettings>): Promise<void> {
+    this.requirePermission('admin');
     const next = { ...this.settings(), ...patch };
     if (supabase) {
       const { error } = await supabase.from('shop_settings').upsert({ id: 1, data: next });
@@ -774,12 +815,14 @@ export class ShopStore {
   }
 
   exportJSON(): string {
+    this.requirePermission('admin');
     const { settings, ...rest } = this.state();
     return JSON.stringify({ ...rest, demo: this.isDemo(), settings: { ...settings, sampleData: undefined } }, null, 2);
   }
 
   /** Replaces every record with the contents of a backup file. */
   async importJSON(json: string): Promise<void> {
+    this.requirePermission('admin');
     const parsed = JSON.parse(json);
     if (!isShopData(parsed)) {
       throw new Error('This file is not an MSR Jewellers backup.');
@@ -789,6 +832,7 @@ export class ShopStore {
 
   /** Fresh sample history priced off the shop's current 24K and silver rates; settings are kept. */
   async resetToDemo(): Promise<void> {
+    this.requirePermission('admin');
     const settings = this.settings();
     const demo = generateDemoData(todayISO(), {
       gold24: settings.rates['24K'],
@@ -798,6 +842,7 @@ export class ShopStore {
   }
 
   async clearAll(): Promise<void> {
+    this.requirePermission('admin');
     await this.replaceAll({ ...emptyData(), demo: false, settings: this.settings() });
   }
 

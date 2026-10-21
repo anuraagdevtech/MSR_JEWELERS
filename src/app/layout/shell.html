@@ -28,7 +28,7 @@
     <section class="rate-card" aria-labelledby="rate-card-title">
       <div class="rate-card-head">
         <h2 id="rate-card-title">Board rate / g</h2>
-        @if (auth.isOwner()) {
+        @if (auth.isAdmin()) {
           <a routerLink="/settings" fragment="rates">Update</a>
         }
       </div>
@@ -41,7 +41,7 @@
         }
       </dl>
       <p class="rate-card-foot" [class.stale]="ratesStale()">
-        @if (ratesStale() && auth.isOwner()) {
+        @if (ratesStale() && auth.isAdmin()) {
           <app-icon name="alert" [size]="13" />
           Set today's rate · last {{ ratesUpdated() }}
         } @else {
@@ -50,12 +50,12 @@
       </p>
     </section>
 
-    @if (auth.cloud) {
+    @if (auth.profile()) {
       <div class="user-card">
         <span class="avatar sm">{{ initials() }}</span>
         <span class="user-text">
           <strong>{{ auth.displayName() }}</strong>
-          <small>{{ auth.isOwner() ? 'Owner' : 'Counter staff' }} · 2FA on</small>
+          <small>{{ auth.roleLabel() }} · {{ auth.cloud ? '2FA on' : 'Local demo' }}</small>
         </span>
         <button type="button" class="icon-btn sm" (click)="signOut()" aria-label="Sign out" title="Sign out">
           <app-icon name="logout" [size]="16" />
@@ -83,6 +83,7 @@
         <app-icon name="menu" />
       </button>
       <app-global-search class="topbar-search" />
+      @if (auth.canBill()) {
       <div class="topbar-actions">
         <button type="button" class="btn btn-secondary" (click)="ui.openPayment()">
           <app-icon name="wallet" [size]="16" />
@@ -93,6 +94,7 @@
           <span>New bill</span>
         </a>
       </div>
+      }
     </header>
 
     @if (store.storageError(); as problem) {
@@ -101,7 +103,12 @@
       </p>
     }
 
-    @if (store.isDemo() && auth.isOwner()) {
+    @if (!auth.cloud) {
+      <p class="notice notice-info banner no-print">
+        <app-icon name="info" [size]="16" /> Local demo · {{ auth.roleLabel() }} · saved in this browser. Supabase sign-in uses real two-factor authentication.
+      </p>
+    }
+    @if (store.isDemo() && auth.isAdmin()) {
       <p class="notice notice-info banner no-print">
         <app-icon name="info" [size]="16" />
         <span>

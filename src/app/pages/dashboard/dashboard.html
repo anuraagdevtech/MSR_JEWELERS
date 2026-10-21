@@ -195,7 +195,7 @@
                 <td class="muted hide-md">{{ row.summary.lastPaymentDate | day }}</td>
                 <td class="num">
                   <div class="row-actions">
-                    @if (row.whatsapp) {
+                    @if (auth.isAdmin() && row.whatsapp) {
                       <a
                         class="icon-btn sm"
                         [href]="row.whatsapp"
@@ -207,13 +207,15 @@
                         <app-icon name="message" [size]="16" />
                       </a>
                     }
-                    <button
-                      type="button"
-                      class="btn btn-secondary btn-xs"
-                      (click)="ui.openPayment({ customerId: row.customer.id })"
-                    >
-                      Collect
-                    </button>
+                    @if (auth.canBill()) {
+                      <button
+                        type="button"
+                        class="btn btn-secondary btn-xs"
+                        (click)="ui.openPayment({ customerId: row.customer.id })"
+                      >
+                        Collect
+                      </button>
+                    }
                   </div>
                 </td>
               </tr>

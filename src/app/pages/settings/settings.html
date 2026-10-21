@@ -102,6 +102,11 @@
           <input id="s-gstin" class="input" [ngModel]="p.gstin" (ngModelChange)="updateProfile('gstin', $event)" />
         </div>
       </div>
+      <div class="field">
+        <label for="s-state">State code (place of supply)</label>
+        <input id="s-state" class="input" inputmode="numeric" maxlength="2" [ngModel]="p.stateCode" (ngModelChange)="updateProfile('stateCode', $event)" />
+        <span class="hint">36 — Telangana. Used on invoices when a GSTIN has not been entered.</span>
+      </div>
       <div class="grid-4">
         <div class="field">
           <label for="s-bill">Bill prefix</label>
@@ -150,7 +155,7 @@
               <small>{{ m.email }}</small>
             </span>
             @if (m.isMe) {
-              <span class="chip chip-good">Owner</span>
+              <span class="chip chip-good">Admin</span>
             } @else {
               <label class="visually-hidden" [for]="'role-' + m.userId">Access for {{ m.email }}</label>
               <select
@@ -160,8 +165,9 @@
                 [disabled]="busy()"
                 (change)="setRole(m, $any($event.target).value)"
               >
-                <option value="owner">Owner</option>
-                <option value="staff">Counter staff</option>
+                <option value="admin">Admin</option>
+                <option value="billing">Billing</option>
+                <option value="analytics">Analytics (read only)</option>
                 <option value="pending">No access</option>
               </select>
             }
@@ -174,7 +180,7 @@
         <app-icon name="info" [size]="16" />
         <span>
           To add someone: Supabase dashboard → Authentication → Users → <strong>Add user</strong> (or Invite).
-          They appear here with <em>No access</em>; choose Owner or Counter staff. On first sign-in they
+          They appear here with <em>No access</em>; choose Admin, Billing or Analytics. On first sign-in they
           scan a QR code with Google or Microsoft Authenticator.
         </span>
       </p>
